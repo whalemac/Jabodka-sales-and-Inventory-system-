@@ -1,6 +1,5 @@
 <?php
 
-<<<<<<< HEAD
 use App\Http\Controllers\Admin\ConsignmentController;
 use App\Http\Controllers\Admin\OnlineOrderController;
 use App\Http\Controllers\Admin\PaymentController;
@@ -128,10 +127,3 @@ Route::middleware(['auth', 'role:staff'])
         Route::put('materials/{material}', [RawMaterialController::class, 'update'])->name('materials.update');
         Route::post('materials/{material}/receive', [RawMaterialController::class, 'receive'])->name('materials.receive');
     });
-=======
-use Illuminate\Support\Facades\Route;
-
-Route::get('/', function () {
-    return view('welcome');
-});
->>>>>>> e30c199068b93b642068a39e0e94a172dda70cf0
