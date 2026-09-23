@@ -88,6 +88,7 @@
                             <th class="text-left px-5 py-3 font-semibold text-gray-600">Total</th>
                             <th class="text-left px-5 py-3 font-semibold text-gray-600">Status</th>
                             <th class="px-5 py-3 font-semibold text-gray-600 text-right">Receipt</th>
+                            <th class="px-5 py-3 font-semibold text-gray-600 text-right">Return</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
@@ -129,6 +130,12 @@
                                     </button>
                                 </form>
                                 @endif
+                            </td>
+                            <td class="px-5 py-3.5 text-right whitespace-nowrap">
+                                <a href="{{ route('admin.returns.search', ['q' => $sale->id]) }}"
+                                   class="text-xs text-gray-500 hover:text-red-600 font-medium hover:underline">
+                                    Return
+                                </a>
                             </td>
                         </tr>
                         @endforeach

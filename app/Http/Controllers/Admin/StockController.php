@@ -22,20 +22,31 @@ class StockController extends Controller
     public function index(Request $request): View
     {
         $filter = $request->get('filter', 'all');
+        $search = trim((string) $request->get('q', ''));
 
         $query = ProductVariant::query()
             ->with('product.supplier')
-            ->orderBy('stock_count');
+            ->join('products', 'product_variants.product_id', '=', 'products.id')
+            ->select('product_variants.*')
+            ->when($filter === 'low', fn ($q) => $q->lowStock())
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('products.name', 'like', "%{$search}%")
+                          ->orWhere('product_variants.size', 'like', "%{$search}%")
+                          ->orWhere('product_variants.version', 'like', "%{$search}%")
+                          ->orWhere('products.category', 'like', "%{$search}%");
+                });
+            })
+            ->orderByRaw('CASE WHEN product_variants.stock_count = 0 THEN 0 WHEN product_variants.stock_count <= product_variants.reorder_level THEN 1 ELSE 2 END')
+            ->orderBy('products.name')
+            ->orderBy('product_variants.size')
+            ->orderBy('product_variants.version');
 
-        if ($filter === 'low') {
-            $query->lowStock();
-        }
-
-        $variants = $query->paginate(40)->withQueryString();
-
+        $variants      = $query->paginate(50)->withQueryString();
         $lowStockCount = ProductVariant::query()->lowStock()->count();
+        $totalVariants = ProductVariant::query()->count();
 
-        return view('admin.stock.index', compact('variants', 'filter', 'lowStockCount'));
+        return view('admin.stock.index', compact('variants', 'filter', 'search', 'lowStockCount', 'totalVariants'));
     }
 
     /**
@@ -85,11 +96,13 @@ class StockController extends Controller
         $suppliers = Supplier::query()->orderBy('supplier_name')->get();
         $products  = Product::query()
             ->with('variants')
-            ->whereIn('source_type', ['sourced', 'consignment'])
             ->orderBy('name')
             ->get();
 
-        return view('admin.stock.import', compact('suppliers', 'products'));
+        // Pre-select a variant if coming from the stock index adjust shortcut
+        $preselect = $request->get('variant');
+
+        return view('admin.stock.import', compact('suppliers', 'products', 'preselect'));
     }
 
     /**

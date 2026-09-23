@@ -11,13 +11,17 @@ use Illuminate\View\View;
 
 class OnlineOrderController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $status = $request->get('status', '');
+
         $orders = SalesTransaction::query()
             ->with(['items.variant.product', 'customer', 'payments'])
             ->where('channel', 'online')
+            ->when($status !== '', fn ($q) => $q->where('shipment_status', $status))
             ->latest('transaction_date')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return view('admin.online.index', compact('orders'));
     }
@@ -25,6 +29,21 @@ class OnlineOrderController extends Controller
     public function create(): View
     {
         return view('admin.online.create');
+    }
+
+    public function show(SalesTransaction $transaction): View
+    {
+        abort_unless($transaction->channel === 'online', 404);
+
+        $transaction->load([
+            'items.variant.product',
+            'customer',
+            'payments',
+            'receipt',
+            'user',
+        ]);
+
+        return view('admin.online.show', compact('transaction'));
     }
 
     public function store(Request $request, SaleService $sales): RedirectResponse

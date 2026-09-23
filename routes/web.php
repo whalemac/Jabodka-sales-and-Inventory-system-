@@ -72,8 +72,10 @@ Route::middleware(['auth', 'role:admin'])
 
         // Returns / Replacements
         Route::get('returns', [ReturnController::class, 'index'])->name('returns.index');
+        Route::get('returns/search', [ReturnController::class, 'search'])->name('returns.search');
         Route::get('returns/create/{salesItem}', [ReturnController::class, 'create'])->name('returns.create');
         Route::post('returns', [ReturnController::class, 'store'])->name('returns.store');
+        Route::get('returns/{return}', [ReturnController::class, 'show'])->name('returns.show');
 
         // Products
         Route::resource('products', ProductController::class)->except(['show']);
@@ -96,8 +98,11 @@ Route::middleware(['auth', 'role:admin'])
         Route::put('consignment/partners/{partner}', [ConsignmentController::class, 'updatePartner'])->name('consignment.partners.update');
         Route::get('consignment/items/create', [ConsignmentController::class, 'createItem'])->name('consignment.items.create');
         Route::post('consignment/items', [ConsignmentController::class, 'storeItem'])->name('consignment.items.store');
+        Route::get('consignment/items/{item}/edit', [ConsignmentController::class, 'editItem'])->name('consignment.items.edit');
+        Route::put('consignment/items/{item}', [ConsignmentController::class, 'updateItem'])->name('consignment.items.update');
         Route::get('consignment/payouts', [ConsignmentController::class, 'payouts'])->name('consignment.payouts');
         Route::post('consignment/payouts', [ConsignmentController::class, 'generatePayout'])->name('consignment.payouts.generate');
+        Route::get('consignment/payouts/{payment}', [ConsignmentController::class, 'showPayout'])->name('consignment.payouts.show');
         Route::patch('consignment/payouts/{payment}/mark-paid', [ConsignmentController::class, 'markPaid'])->name('consignment.payouts.mark-paid');
 
         // Reports
