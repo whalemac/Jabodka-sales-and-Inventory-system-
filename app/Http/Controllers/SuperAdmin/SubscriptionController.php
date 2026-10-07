@@ -14,7 +14,7 @@ class SubscriptionController extends Controller
     public function index(): View
     {
         return view('super.subscriptions.index', [
-            'subscriptions' => Subscription::query()->with('user')->latest()->get(),
+            'subscriptions' => Subscription::query()->with('user')->latest()->paginate(15),
             'admins' => User::query()->where('role', 'admin')->orderBy('username')->get(),
         ]);
     }

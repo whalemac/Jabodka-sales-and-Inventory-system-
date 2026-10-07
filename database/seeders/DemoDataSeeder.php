@@ -93,8 +93,8 @@ class DemoDataSeeder extends Seeder
             $product = Product::firstOrCreate(
                 ['name' => $p['name'], 'source_type' => 'handmade'],
                 [
-                    'category'    => $p['category'],
-                    'base_price'  => $p['base_price'],
+                    'category' => $p['category'],
+                    'base_price' => $p['base_price'],
                     'supplier_id' => null,
                 ]
             );
@@ -158,7 +158,7 @@ class DemoDataSeeder extends Seeder
                 'supplier_id' => $supplierA->id,
                 'variants' => [
                     ['size' => 'S/M', 'version' => 'Merino Wool', 'stock_count' => 30, 'reorder_level' => 10],
-                    ['size' => 'L/XL','version' => 'Merino Wool', 'stock_count' => 25, 'reorder_level' => 10],
+                    ['size' => 'L/XL', 'version' => 'Merino Wool', 'stock_count' => 25, 'reorder_level' => 10],
                     ['size' => 'S/M', 'version' => 'Synthetic',   'stock_count' => 3,  'reorder_level' => 10], // low stock
                 ],
             ],
@@ -168,8 +168,8 @@ class DemoDataSeeder extends Seeder
             $product = Product::firstOrCreate(
                 ['name' => $p['name'], 'source_type' => 'sourced'],
                 [
-                    'category'    => $p['category'],
-                    'base_price'  => $p['base_price'],
+                    'category' => $p['category'],
+                    'base_price' => $p['base_price'],
                     'supplier_id' => $p['supplier_id'],
                 ]
             );
@@ -212,7 +212,7 @@ class DemoDataSeeder extends Seeder
             $product = Product::firstOrCreate(
                 ['name' => $p['name'], 'source_type' => 'consignment'],
                 [
-                    'category'   => $p['category'],
+                    'category' => $p['category'],
                     'base_price' => $p['base_price'],
                 ]
             );
@@ -225,10 +225,10 @@ class DemoDataSeeder extends Seeder
                 ConsignmentItem::firstOrCreate(
                     ['partner_id' => $p['partner']->id, 'variant_id' => $variant->id],
                     [
-                        'units_delivered'   => $v['units'],
+                        'units_delivered' => $v['units'],
                         'agreed_base_price' => $v['base'],
-                        'shop_markup'       => $v['markup'],
-                        'received_at'       => now()->subDays(30),
+                        'shop_markup' => $v['markup'],
+                        'received_at' => now()->subDays(30),
                     ]
                 );
             }
@@ -245,11 +245,11 @@ class DemoDataSeeder extends Seeder
     {
         $carabiner = ProductVariant::whereHas('product', fn ($q) => $q->where('name', 'Carabiner Clip (Heavy Duty)'))
             ->where('size', 'D-shape')->where('version', 'Silver')->first();
-        $bracelet  = ProductVariant::whereHas('product', fn ($q) => $q->where('name', 'Paracord Bracelet'))
+        $bracelet = ProductVariant::whereHas('product', fn ($q) => $q->where('name', 'Paracord Bracelet'))
             ->where('size', 'M')->where('version', 'Black')->first();
-        $headlamp  = ProductVariant::whereHas('product', fn ($q) => $q->where('name', 'Camping Headlamp'))
+        $headlamp = ProductVariant::whereHas('product', fn ($q) => $q->where('name', 'Camping Headlamp'))
             ->where('version', 'Black')->first();
-        $socks     = ProductVariant::whereHas('product', fn ($q) => $q->where('name', 'Trekking Socks'))
+        $socks = ProductVariant::whereHas('product', fn ($q) => $q->where('name', 'Trekking Socks'))
             ->where('size', 'S/M')->where('version', 'Merino Wool')->first();
 
         if (! $carabiner || ! $bracelet || ! $headlamp || ! $socks) {
@@ -262,10 +262,11 @@ class DemoDataSeeder extends Seeder
                 'name' => 'Maria Santos', 'buyer_type' => 'walk_in', 'contact_number' => '0917-123-4567',
             ]);
             $tx1 = SalesTransaction::create([
-                'customer_id'      => $customer1->id,
-                'user_id'          => $admin->id,
-                'channel'          => 'walk_in',
+                'customer_id' => $customer1->id,
+                'user_id' => $admin->id,
+                'channel' => 'walk_in',
                 'transaction_date' => now()->subDays(3)->setTime(10, 15),
+                'shipment_status' => null,
             ]);
             SalesItem::create(['transaction_id' => $tx1->id, 'variant_id' => $bracelet->id,  'quantity' => 2, 'price_at_sale' => 180.00]);
             SalesItem::create(['transaction_id' => $tx1->id, 'variant_id' => $headlamp->id,  'quantity' => 1, 'price_at_sale' => 450.00]);
@@ -279,18 +280,19 @@ class DemoDataSeeder extends Seeder
             Receipt::create([
                 'transaction_id' => $tx1->id, 'user_id' => $admin->id,
                 'receipt_number' => 'JBK-'.now()->year.'-000001',
-                'issued_at'      => $tx1->transaction_date,
-                'reprint_count'  => 0,
+                'issued_at' => $tx1->transaction_date,
+                'reprint_count' => 0,
             ]);
         });
 
         // Transaction 2 – yesterday, GCash, no receipt
         DB::transaction(function () use ($admin, $carabiner, $socks) {
             $tx2 = SalesTransaction::create([
-                'customer_id'      => null,
-                'user_id'          => $admin->id,
-                'channel'          => 'walk_in',
+                'customer_id' => null,
+                'user_id' => $admin->id,
+                'channel' => 'walk_in',
                 'transaction_date' => now()->subDays(1)->setTime(14, 30),
+                'shipment_status' => null,
             ]);
             SalesItem::create(['transaction_id' => $tx2->id, 'variant_id' => $carabiner->id, 'quantity' => 3, 'price_at_sale' => 95.00]);
             SalesItem::create(['transaction_id' => $tx2->id, 'variant_id' => $socks->id,     'quantity' => 2, 'price_at_sale' => 165.00]);
@@ -310,10 +312,11 @@ class DemoDataSeeder extends Seeder
                 'name' => 'Juan dela Cruz', 'buyer_type' => 'walk_in', 'contact_number' => '0922-987-6543',
             ]);
             $tx3 = SalesTransaction::create([
-                'customer_id'      => $customer3->id,
-                'user_id'          => $admin->id,
-                'channel'          => 'walk_in',
+                'customer_id' => $customer3->id,
+                'user_id' => $admin->id,
+                'channel' => 'walk_in',
                 'transaction_date' => now()->setTime(9, 5),
+                'shipment_status' => null,
             ]);
             SalesItem::create(['transaction_id' => $tx3->id, 'variant_id' => $headlamp->id, 'quantity' => 1, 'price_at_sale' => 450.00]);
             $headlamp->decrement('stock_count', 1);

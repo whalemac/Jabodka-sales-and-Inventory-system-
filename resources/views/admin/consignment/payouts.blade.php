@@ -40,8 +40,8 @@
                             <option value="{{ $p->id }}"
                                 {{ (request('partner_id') == $p->id || old('partner_id') == $p->id) ? 'selected' : '' }}>
                                 {{ $p->partner_name }}
-                                @php $u = $unsettled[$p->id] ?? null; @endphp
-                                @if($u && $u->count()) ({{ $u->count() }} unsettled) @endif
+                                @php $u = $unsettledCounts[$p->id] ?? 0; @endphp
+                                @if($u) ({{ $u }} unsettled) @endif
                             </option>
                             @endforeach
                         </select>
@@ -120,6 +120,10 @@
                     </div>
                     @endforeach
                 </div>
+
+                @if($unsettled->hasPages())
+                <div class="px-5 py-3 border-t border-gray-100">{{ $unsettled->links() }}</div>
+                @endif
                 @endif
             </div>
         </div>

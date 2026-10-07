@@ -1,13 +1,13 @@
 <x-layouts.app title="Subscriptions">
 
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
             <h1 class="text-2xl font-bold text-ink">Subscriptions</h1>
             <p class="text-sm text-gray-500 mt-0.5">Plan status and T&amp;C acceptance</p>
         </div>
         {{-- Add subscription inline modal --}}
         <button x-data x-on:click="$dispatch('open-modal', 'add-subscription')"
-                class="inline-flex items-center gap-2 bg-navy hover:bg-navy-dark text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+                class="inline-flex items-center gap-2 bg-navy hover:bg-navy-dark text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition self-start sm:self-auto">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
@@ -23,7 +23,7 @@
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="bg-sand border-b border-gray-100">
+                        <tr class="bg-sand border-b-2 border-gray-200">
                             <th class="text-left px-5 py-3 font-semibold text-gray-600">User</th>
                             <th class="text-left px-5 py-3 font-semibold text-gray-600">Plan</th>
                             <th class="text-left px-5 py-3 font-semibold text-gray-600">Status</th>
@@ -67,6 +67,12 @@
                     </tbody>
                 </table>
             </div>
+
+            @if($subscriptions->hasPages())
+            <div class="px-5 py-4 border-t border-gray-100">
+                {{ $subscriptions->links() }}
+            </div>
+            @endif
         @endif
     </div>
 

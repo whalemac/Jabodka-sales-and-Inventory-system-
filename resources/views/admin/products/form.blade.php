@@ -27,30 +27,26 @@
                 'version'       => $v->version ?? '',
                 'stock_count'   => $v->stock_count,
                 'reorder_level' => $v->reorder_level,
+                'is_active'     => (bool) $v->is_active,
                 'has_sales'     => $v->salesItems()->exists(),
               ])->values()->toArray()
-            : [['id' => null, 'size' => '', 'version' => '', 'stock_count' => 0, 'reorder_level' => 0, 'has_sales' => false]];
+            : [['id' => null, 'size' => '', 'version' => '', 'stock_count' => 0, 'reorder_level' => 0, 'is_active' => true, 'has_sales' => false]];
     @endphp
 
     <div class="max-w-2xl"
          x-data="{
             sourceType: '{{ old('source_type', $product->source_type ?? 'sourced') }}',
-            variants: {{ json_encode(old('variants') ? collect(old('variants'))->map(fn($v, $i) => array_merge($existingVariants[$i] ?? ['id'=>null,'has_sales'=>false], $v))->values()->all() : $existingVariants) }},
-            deleteIds: [],
+            variants: {{ json_encode(old('variants') ? collect(old('variants'))->map(fn($v, $i) => array_merge($existingVariants[$i] ?? ['id'=>null,'has_sales'=>false,'is_active'=>true], $v))->values()->all() : $existingVariants) }},
 
             addVariant() {
-                this.variants.push({ id: null, size: '', version: '', stock_count: 0, reorder_level: 0, has_sales: false });
+                this.variants.push({ id: null, size: '', version: '', stock_count: 0, reorder_level: 0, is_active: true, has_sales: false });
             },
 
             removeVariant(idx) {
                 const v = this.variants[idx];
                 if (v.id) {
-                    if (v.has_sales) {
-                        alert('This variant has sales history and cannot be deleted. You can change its reorder level instead.');
-                        return;
-                    }
-                    if (!confirm('Delete this variant? This cannot be undone.')) return;
-                    this.deleteIds.push(String(v.id));
+                    v.is_active = !v.is_active;
+                    return;
                 }
                 this.variants.splice(idx, 1);
                 if (this.variants.length === 0) this.addVariant();
@@ -61,9 +57,6 @@
               action="{{ $product->exists ? route('admin.products.update', $product) : route('admin.products.store') }}">
             @csrf
             @if($product->exists) @method('PUT') @endif
-
-            {{-- Hidden field: variant IDs to delete --}}
-            <input type="hidden" name="delete_variant_ids" :value="deleteIds.join(',')">
 
             {{-- ===== Product Details ===== --}}
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-5 space-y-4">
@@ -149,20 +142,29 @@
                     {{-- Supplier (hidden for handmade) --}}
                     <div x-show="sourceType !== 'handmade'" x-cloak>
                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Supplier</label>
-                        <select name="supplier_id"
-                                class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
-                            <option value="">— No supplier assigned —</option>
-                            @foreach($suppliers as $s)
-                            <option value="{{ $s->id }}"
-                                {{ old('supplier_id', $product->supplier_id) == $s->id ? 'selected' : '' }}>
-                                {{ $s->supplier_name }}
-                            </option>
-                            @endforeach
-                        </select>
+                        <div class="flex gap-2">
+                            <select name="supplier_id" id="supplier-select"
+                                    class="flex-1 h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
+                                <option value="">— No supplier assigned —</option>
+                                @foreach($suppliers as $s)
+                                <option value="{{ $s->id }}"
+                                    {{ old('supplier_id', $product->supplier_id) == $s->id ? 'selected' : '' }}>
+                                    {{ $s->supplier_name }}
+                                </option>
+                                @endforeach
+                            </select>
+                            <button type="button"
+                                    @click="$dispatch('open-supplier-modal')"
+                                    class="h-11 px-3 shrink-0 inline-flex items-center gap-1 rounded-xl border-2 border-gray-200 hover:border-navy text-xs font-semibold text-navy transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                Add
+                            </button>
+                        </div>
                         @if(!$suppliers->count())
                         <p class="text-xs text-gray-400 mt-1">
-                            No suppliers yet.
-                            <a href="{{ route('admin.suppliers.create') }}" class="text-navy hover:underline" target="_blank">Add one →</a>
+                            No suppliers yet — use Add to create one without leaving this page.
                         </p>
                         @endif
                     </div>
@@ -188,7 +190,7 @@
                 </div>
 
                 {{-- Column headers --}}
-                <div class="hidden sm:grid sm:grid-cols-12 gap-3 px-5 py-2.5 bg-sand border-b border-gray-100
+                <div class="hidden sm:grid sm:grid-cols-12 gap-3 px-5 py-2.5 bg-sand border-b-2 border-gray-200
                             text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     <div class="col-span-3">Size</div>
                     <div class="col-span-3">Version / Color</div>
@@ -196,13 +198,13 @@
                         @if($product->exists) Current Stock @else Opening Stock @endif
                     </div>
                     <div class="col-span-2 text-center">Reorder At</div>
-                    <div class="col-span-2"></div>
+                    <div class="col-span-2 text-center">Active</div>
                 </div>
 
                 <div class="divide-y divide-gray-50">
                     <template x-for="(v, idx) in variants" :key="idx">
                         <div class="px-5 py-4"
-                             :class="v.has_sales ? 'bg-gray-50/50' : ''">
+                             :class="v.is_active === false ? 'bg-gray-50/80' : (v.has_sales ? 'bg-gray-50/50' : '')">
 
                             {{-- Mobile label for existing with sales --}}
                             <div x-show="v.has_sales" x-cloak class="mb-2">
@@ -269,8 +271,9 @@
                                            class="w-full h-10 px-3 rounded-xl border-2 border-gray-200 bg-white text-sm text-center focus:outline-none focus:border-navy">
                                 </div>
 
-                                {{-- Delete button --}}
+                                {{-- Active toggle / remove unsaved --}}
                                 <div class="sm:col-span-2 flex items-center justify-end sm:justify-center gap-2">
+                                    <input type="hidden" :name="`variants[${idx}][is_active]`" :value="v.is_active ? 1 : 0">
                                     <a x-show="v.id !== null" x-cloak
                                        :href="`/admin/stock/adjust/${v.id}`"
                                        class="h-8 px-2.5 inline-flex items-center text-xs text-navy font-medium rounded-lg bg-navy/10 hover:bg-navy hover:text-white transition"
@@ -279,12 +282,18 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg>
                                     </a>
+                                    <button type="button" x-show="v.id !== null" x-cloak
+                                            @click="v.is_active = !v.is_active"
+                                            class="h-8 px-2.5 inline-flex items-center text-xs font-semibold rounded-lg transition"
+                                            :class="v.is_active ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-green-50 text-green-700 hover:bg-green-100'">
+                                        <span x-text="v.is_active ? 'Deactivate' : 'Activate'"></span>
+                                    </button>
                                     <button type="button"
                                             @click="removeVariant(idx)"
-                                            x-show="variants.length > 1 || v.id === null"
+                                            x-show="v.id === null && variants.length > 1"
                                             class="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                         </svg>
                                     </button>
                                 </div>
@@ -338,29 +347,107 @@
                 </a>
             </div>
 
-            {{-- Danger zone: delete product --}}
             @if($product->exists)
-            <div class="mt-8 border border-red-200 rounded-2xl p-5">
-                <h3 class="text-sm font-semibold text-red-700 mb-1">Danger Zone</h3>
+            <div class="mt-8 border border-gray-200 rounded-2xl p-5">
+                <h3 class="text-sm font-semibold text-ink mb-1">Product status</h3>
                 <p class="text-xs text-gray-500 mb-3">
-                    Deleting a product removes it and all its variants permanently.
-                    Products with sales history cannot be deleted.
+                    Deactivated products stay in history and reports, but they no longer appear in Walk-in or Online Order search.
                 </p>
-                <form method="POST" action="{{ route('admin.products.destroy', $product) }}"
-                      onsubmit="return confirm('Delete {{ addslashes($product->name) }} and all its variants? This cannot be undone.')">
-                    @csrf @method('DELETE')
+                <form method="POST" action="{{ route('admin.products.toggle-active', $product) }}">
+                    @csrf @method('PATCH')
                     <button type="submit"
-                            class="h-9 px-4 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-semibold rounded-xl transition border border-red-200">
-                        Delete This Product
+                            class="h-9 px-4 text-sm font-semibold rounded-xl transition border
+                                   {{ $product->is_active ? 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200' : 'bg-green-50 hover:bg-green-100 text-green-700 border-green-200' }}">
+                        {{ $product->is_active ? 'Deactivate this product' : 'Activate this product' }}
                     </button>
                 </form>
-                @error('delete')
-                <p class="text-xs text-red-600 mt-2">{{ $message }}</p>
-                @enderror
             </div>
             @endif
 
         </form>
+
+        {{-- ===== Add supplier (inline, no page leave) ===== --}}
+        <div x-data="{
+                show: false,
+                name: '',
+                contact: '',
+                saving: false,
+                error: '',
+                async saveSupplier() {
+                    this.saving = true;
+                    this.error = '';
+                    try {
+                        const res = await fetch('{{ route('admin.suppliers.store') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content'),
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            body: JSON.stringify({ supplier_name: this.name.trim(), contact_details: this.contact.trim() }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            this.error = data.message
+                                || (data.errors && Object.values(data.errors).flat()[0])
+                                || 'Could not save the supplier.';
+                            return;
+                        }
+                        const select = document.getElementById('supplier-select');
+                        if (select) {
+                            const opt = document.createElement('option');
+                            opt.value = data.id;
+                            opt.textContent = data.name;
+                            select.appendChild(opt);
+                            select.value = String(data.id);
+                        }
+                        this.name = '';
+                        this.contact = '';
+                        this.show = false;
+                    } catch (e) {
+                        this.error = 'Network error — please try again.';
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+             }"
+             @open-supplier-modal.window="show = true; error = ''"
+             x-show="show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
+            <div class="absolute inset-0 bg-black/40" @click="show = false"></div>
+            <div x-show="show" x-transition.opacity.duration.150ms
+                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+                <h2 class="text-lg font-bold text-ink">Add Supplier</h2>
+                <p class="text-xs text-gray-400 mt-0.5">Saved straight to the list — no need to leave this form.</p>
+
+                <div class="mt-5 space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Supplier name <span class="text-red-500">*</span></label>
+                        <input type="text" x-model="name"
+                               class="w-full h-11 px-3 rounded-xl border-2 border-gray-200 text-sm focus:outline-none focus:border-navy">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Contact details</label>
+                        <input type="text" x-model="contact" placeholder="Phone, email, address…"
+                               class="w-full h-11 px-3 rounded-xl border-2 border-gray-200 text-sm focus:outline-none focus:border-navy">
+                    </div>
+                </div>
+
+                <p x-show="error" x-cloak class="text-xs text-red-600 mt-4" x-text="error"></p>
+
+                <div class="flex gap-3 mt-6">
+                    <button type="button" @click="saveSupplier()" :disabled="saving || !name.trim()"
+                            class="flex-1 h-11 inline-flex items-center justify-center gap-2 bg-navy hover:bg-navy-dark disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition">
+                        <span x-show="saving" x-cloak class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>
+                        Save Supplier
+                    </button>
+                    <button type="button" @click="show = false"
+                            class="flex-1 h-11 bg-gray-100 hover:bg-gray-200 text-ink text-sm font-medium rounded-xl transition">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
 </x-layouts.app>

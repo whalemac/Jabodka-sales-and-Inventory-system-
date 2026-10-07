@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Supplier;
 use App\Support\ActivityLogger;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -23,11 +24,18 @@ class SupplierController extends Controller
         return view('admin.suppliers.form', ['supplier' => new Supplier]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $data = $this->validated($request);
         $supplier = Supplier::query()->create($data);
         ActivityLogger::log('supplier.create', $supplier);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'id' => $supplier->id,
+                'name' => $supplier->supplier_name,
+            ]);
+        }
 
         return redirect()->route('admin.suppliers.index')->with('status', 'Supplier added.');
     }
@@ -56,7 +64,7 @@ class SupplierController extends Controller
     protected function validated(Request $request): array
     {
         return $request->validate([
-            'supplier_name'   => ['required', 'string', 'max:150'],
+            'supplier_name' => ['required', 'string', 'max:150'],
             'contact_details' => ['nullable', 'string', 'max:500'],
         ]);
     }

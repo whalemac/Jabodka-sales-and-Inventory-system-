@@ -4,8 +4,8 @@
         <div>
             <h1 class="text-2xl font-bold text-ink">Raw Materials</h1>
             <p class="text-sm text-gray-500 mt-0.5">
-                {{ $materials->count() }} {{ Str::plural('material', $materials->count()) }}
-                @if($materials->count() > 0)
+                {{ $materials->total() }} {{ Str::plural('material', $materials->total()) }}
+                @if($materials->total() > 0)
                     · Total stock tracked
                 @endif
             </p>
@@ -94,12 +94,12 @@
             <div class="hidden sm:block overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="bg-sand border-b border-gray-100 text-left">
+                        <tr class="bg-sand border-b-2 border-gray-200 text-left">
                             <th class="px-5 py-3 font-semibold text-gray-600">Material Name</th>
                             <th class="px-5 py-3 font-semibold text-gray-600">Unit</th>
                             <th class="px-5 py-3 font-semibold text-gray-600 text-right">Stock on Hand</th>
                             <th class="px-5 py-3 font-semibold text-gray-600">Receive Delivery</th>
-                            <th class="px-5 py-3"></th>
+                            <th class="px-5 py-3 font-semibold text-gray-600 text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
@@ -140,7 +140,7 @@
                                     </form>
                                 </div>
                             </td>
-                            <td class="px-5 py-4 text-right">
+                            <td class="px-5 py-4 text-center">
                                 <a href="{{ route('staff.materials.edit', $mat) }}"
                                    class="text-xs text-navy font-medium hover:underline">Edit</a>
                             </td>
@@ -149,6 +149,12 @@
                     </tbody>
                 </table>
             </div>
+
+            @if($materials->hasPages())
+            <div class="px-5 py-4 border-t border-gray-100">
+                {{ $materials->links() }}
+            </div>
+            @endif
         @endif
     </div>
 

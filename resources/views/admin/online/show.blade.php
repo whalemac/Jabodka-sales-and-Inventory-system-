@@ -2,25 +2,26 @@
 
     @php
         $statusColors = [
-            'pending_payment' => 'bg-red-100 text-red-700 border-red-200',
-            'ready_to_ship'   => 'bg-blue-100 text-blue-700 border-blue-200',
-            'shipped'         => 'bg-purple-100 text-purple-700 border-purple-200',
-            'delivered'       => 'bg-green-100 text-green-700 border-green-200',
-            'cancelled'       => 'bg-gray-100 text-gray-500 border-gray-200',
+            'pending' => 'bg-gray-100 text-gray-600 border-gray-200',
+            'preparing' => 'bg-sky-100 text-sky-800 border-sky-200',
+            'shipped' => 'bg-indigo-100 text-indigo-800 border-indigo-200',
+            'in_transit' => 'bg-purple-100 text-purple-800 border-purple-200',
+            'delivered' => 'bg-green-100 text-green-800 border-green-200',
+            'returned' => 'bg-orange-100 text-orange-800 border-orange-200',
         ];
-        $statusLabels = [
-            'pending_payment' => 'Awaiting Payment',
-            'ready_to_ship'   => 'Ready to Ship',
-            'shipped'         => 'Shipped',
-            'delivered'       => 'Delivered',
-            'cancelled'       => 'Cancelled',
+        $statusLabels = \App\Models\SalesTransaction::SHIPMENT_STATUSES;
+        $pay = $transaction->derivedPaymentStatus();
+        $payColors = [
+            'pending' => 'bg-gray-100 text-gray-700 border-gray-200',
+            'confirmed' => 'bg-green-100 text-green-700 border-green-200',
+            'refunded' => 'bg-red-100 text-red-700 border-red-200',
         ];
         $statusColor = $statusColors[$transaction->shipment_status] ?? 'bg-gray-100 text-gray-600';
         $statusLabel = $statusLabels[$transaction->shipment_status] ?? $transaction->shipment_status;
     @endphp
 
     {{-- Page header --}}
-    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
             <a href="{{ route('admin.online.index') }}"
                class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-navy mb-2">
@@ -32,13 +33,11 @@
             <div class="flex flex-wrap items-center gap-3">
                 <h1 class="text-2xl font-bold text-ink">Order #{{ $transaction->id }}</h1>
                 <span class="inline-block text-sm font-semibold px-3 py-1 rounded-full border {{ $statusColor }}">
-                    {{ $statusLabel }}
+                    Ship: {{ $statusLabel }}
                 </span>
-                @if($transaction->isPaid())
-                <span class="inline-block text-sm font-semibold px-3 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
-                    ✓ Paid
+                <span class="inline-block text-sm font-semibold px-3 py-1 rounded-full border {{ $payColors[$pay] ?? 'bg-gray-100 text-gray-600' }}">
+                    Pay: {{ \App\Models\SalesTransaction::PAYMENT_STATUSES[$pay] ?? $pay }}
                 </span>
-                @endif
             </div>
             <p class="text-sm text-gray-500 mt-1">
                 {{ $transaction->transaction_date->format('F j, Y · g:i A') }}
@@ -49,7 +48,7 @@
         {{-- Quick receipt button --}}
         @if($transaction->receipt)
         <a href="{{ route('admin.receipts.show', $transaction->receipt) }}"
-           class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-navy text-ink text-sm font-medium px-4 py-2.5 rounded-xl transition self-start shrink-0">
+           class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-navy text-ink text-sm font-medium px-4 py-2.5 rounded-xl transition self-start sm:self-auto">
             <svg class="w-4 h-4 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
@@ -203,11 +202,7 @@
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="px-5 py-4 border-b border-gray-100">
                     <h2 class="font-semibold text-ink text-sm">Update Shipment</h2>
-                    @if(!$transaction->isPaid())
-                    <p class="text-xs text-yellow-600 mt-1 font-medium">
-                        ⚠ Payment must be confirmed before marking as Ready to Ship or Shipped.
-                    </p>
-                    @endif
+                    <p class="text-xs text-gray-400 mt-1">Shipment moves independently of payment.</p>
                 </div>
                 <div class="p-5">
                     <form method="POST" action="{{ route('admin.online.shipment', $transaction) }}"
@@ -222,13 +217,7 @@
                                 </label>
                                 <select name="shipment_status" required
                                         class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
-                                    @foreach([
-                                        'pending_payment' => 'Awaiting Payment',
-                                        'ready_to_ship'   => 'Ready to Ship',
-                                        'shipped'         => 'Shipped',
-                                        'delivered'       => 'Delivered',
-                                        'cancelled'       => 'Cancelled',
-                                    ] as $val => $label)
+                                    @foreach(\App\Models\SalesTransaction::SHIPMENT_STATUSES as $val => $label)
                                     <option value="{{ $val }}"
                                         {{ $transaction->shipment_status === $val ? 'selected' : '' }}>
                                         {{ $label }}
@@ -360,19 +349,15 @@
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <h2 class="font-semibold text-ink text-sm mb-4">Order Timeline</h2>
                 @php
-                    $steps = [
-                        'pending_payment' => 'Awaiting Payment',
-                        'ready_to_ship'   => 'Ready to Ship',
-                        'shipped'         => 'Shipped',
-                        'delivered'       => 'Delivered',
-                    ];
+                    $steps = \App\Models\SalesTransaction::SHIPMENT_STATUSES;
+                    unset($steps['returned']);
                     $statuses = array_keys($steps);
                     $currentIdx = array_search($transaction->shipment_status, $statuses);
                 @endphp
-                @if($transaction->shipment_status === 'cancelled')
-                <div class="flex items-center gap-2 text-sm text-gray-500">
-                    <span class="w-3 h-3 rounded-full bg-gray-300 shrink-0"></span>
-                    Order was cancelled
+                @if($transaction->shipment_status === 'returned')
+                <div class="flex items-center gap-2 text-sm text-orange-700">
+                    <span class="w-3 h-3 rounded-full bg-orange-400 shrink-0"></span>
+                    Order was returned
                 </div>
                 @else
                 <div class="space-y-3">

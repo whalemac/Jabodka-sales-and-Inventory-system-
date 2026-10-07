@@ -16,7 +16,7 @@ class RawMaterialController extends Controller
 
     public function index(): View
     {
-        $materials = RawMaterial::query()->orderBy('material_name')->get();
+        $materials = RawMaterial::query()->orderBy('material_name')->paginate(15);
 
         return view('staff.materials.index', compact('materials'));
     }
@@ -61,8 +61,8 @@ class RawMaterialController extends Controller
     protected function validated(Request $request): array
     {
         return $request->validate([
-            'material_name'  => ['required', 'string', 'max:150'],
-            'unit'           => ['required', 'string', 'max:30'],
+            'material_name' => ['required', 'string', 'max:150'],
+            'unit' => ['required', 'string', 'max:30'],
             'stock_quantity' => ['nullable', 'numeric', 'min:0'],
         ]);
     }

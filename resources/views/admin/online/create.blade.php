@@ -148,7 +148,9 @@
                     Contact Number <span class="text-red-500">*</span>
                 </label>
                 <input type="text" x-model="contactNumber" required
-                       placeholder="09xx-xxx-xxxx"
+                       inputmode="numeric" maxlength="11" autocomplete="tel"
+                       @input="contactNumber = contactNumber.replace(/\D/g, '').slice(0, 11)"
+                       placeholder="09XXXXXXXXX"
                        class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy"
                        :class="validationErrors.contactNumber ? 'border-red-400' : ''">
                 <p x-show="validationErrors.contactNumber" x-cloak x-text="validationErrors.contactNumber"
@@ -183,8 +185,9 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Shipping Fee (₱)</label>
                     <input type="number" step="0.01" min="0" x-model.number="shippingFee"
+                           inputmode="decimal"
                            placeholder="0.00"
-                           class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
+                           class="no-spinner w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                 </div>
             </div>
         </div>
@@ -213,8 +216,9 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Amount Paid (₱)</label>
                     <input type="number" step="0.01" min="0" x-model.number="amountPaid"
+                           inputmode="decimal"
                            :placeholder="grandTotal().toFixed(2)"
-                           class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
+                           class="no-spinner w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                 </div>
 
                 <div x-show="method === 'gcash'" x-cloak>

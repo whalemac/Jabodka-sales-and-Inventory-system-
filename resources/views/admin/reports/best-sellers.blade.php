@@ -9,8 +9,15 @@
     </div>
     <div class="flex items-center gap-3 print:hidden">
         <a href="{{ route('admin.reports.index') }}" class="text-sm text-gray-500 hover:text-navy">← Reports</a>
+        <a href="{{ route('admin.reports.best-sellers.export', request()->only(['range', 'from', 'to'])) }}"
+           class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-navy text-ink text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Export xlsx
+        </a>
         <button onclick="window.print()"
-                class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-navy text-ink text-sm font-medium px-4 py-2 rounded-xl transition">
+                class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-navy text-ink text-sm font-semibold px-4 py-2.5 rounded-xl transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
             </svg>
@@ -45,7 +52,7 @@
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
-                <tr class="bg-sand border-b border-gray-100 text-left">
+                <tr class="bg-sand border-b-2 border-gray-200 text-left">
                     <th class="px-5 py-3 font-semibold text-gray-600 w-10">#</th>
                     <th class="px-5 py-3 font-semibold text-gray-600">Product / Variant</th>
                     <th class="px-5 py-3 font-semibold text-gray-600">Source</th>
@@ -55,15 +62,16 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-50">
-                @foreach($items as $idx => $item)
+                @foreach($rows as $idx => $item)
                 @php
+                    $rank = ($rows->firstItem() ?? 1) + $idx;
                     $pct = $grandTotalSold > 0 ? ($item->total_sold / $grandTotalSold * 100) : 0;
                 @endphp
                 <tr class="hover:bg-sand/50 transition">
                     <td class="px-5 py-3.5">
                         <span class="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold
-                            {{ $idx < 3 ? 'bg-navy text-white' : 'bg-gray-100 text-gray-600' }}">
-                            {{ $idx + 1 }}
+                            {{ $rank <= 3 ? 'bg-navy text-white' : 'bg-gray-100 text-gray-600' }}">
+                            {{ $rank }}
                         </span>
                     </td>
                     <td class="px-5 py-3.5 font-medium text-ink">
@@ -104,6 +112,10 @@
             </tfoot>
         </table>
     </div>
+
+    @if($rows->hasPages())
+    <div class="px-5 py-4 border-t border-gray-100">{{ $rows->links() }}</div>
+    @endif
     @endif
 </div>
 

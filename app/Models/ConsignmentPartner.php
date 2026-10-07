@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ConsignmentPartner extends Model
 {
+    /** @use HasFactory\ConsignmentPartnerFactory */
+    use HasFactory;
+
     protected $fillable = [
         'partner_name',
         'contact_details',
@@ -20,5 +24,10 @@ class ConsignmentPartner extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(ConsignmentPayment::class, 'partner_id');
+    }
+
+    public function receipts(): HasMany
+    {
+        return $this->hasMany(ConsignmentReceipt::class, 'partner_id');
     }
 }

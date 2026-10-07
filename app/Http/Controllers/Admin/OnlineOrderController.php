@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\SalesTransaction;
 use App\Services\SaleService;
+use App\Support\ActivityLogger;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -86,24 +88,61 @@ class OnlineOrderController extends Controller
         return redirect()->route('admin.online.index')->with('status', 'Online order recorded.');
     }
 
-    public function updateShipment(Request $request, SalesTransaction $transaction): RedirectResponse
+    public function updateShipment(Request $request, SalesTransaction $transaction): RedirectResponse|JsonResponse
     {
         abort_unless($transaction->channel === 'online', 404);
 
         $data = $request->validate([
-            'shipment_status' => ['required', 'in:pending_payment,ready_to_ship,shipped,delivered,cancelled'],
+            'shipment_status' => ['required', 'in:pending,preparing,shipped,in_transit,delivered,returned'],
             'tracking_number' => ['nullable', 'string', 'max:80'],
             'courier' => ['nullable', 'string', 'max:50'],
         ]);
 
-        if (in_array($data['shipment_status'], ['ready_to_ship', 'shipped'], true) && ! $transaction->isPaid()) {
-            return back()->withErrors([
-                'shipment_status' => 'Payment must be confirmed before this order is ready to ship.',
+        $old = $transaction->shipment_status;
+        $payload = ['shipment_status' => $data['shipment_status']];
+        if (array_key_exists('tracking_number', $data) && $data['tracking_number'] !== null) {
+            $payload['tracking_number'] = $data['tracking_number'];
+        }
+        if (array_key_exists('courier', $data) && $data['courier'] !== null) {
+            $payload['courier'] = $data['courier'];
+        }
+
+        $transaction->update($payload);
+
+        ActivityLogger::log('order.shipment.update', $transaction, null, [
+            'from' => $old,
+            'to' => $data['shipment_status'],
+        ]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'ok' => true,
+                'shipment_status' => $transaction->shipment_status,
+                'label' => SalesTransaction::SHIPMENT_STATUSES[$transaction->shipment_status] ?? $transaction->shipment_status,
             ]);
         }
 
-        $transaction->update($data);
-
         return back()->with('status', 'Shipment updated.');
+    }
+
+    public function updatePaymentStatus(Request $request, SalesTransaction $transaction, SaleService $sales): RedirectResponse|JsonResponse
+    {
+        abort_unless($transaction->channel === 'online', 404);
+
+        $data = $request->validate([
+            'payment_status' => ['required', 'in:pending,confirmed,refunded'],
+        ]);
+
+        $status = $sales->setPaymentStatus($transaction, auth()->user(), $data['payment_status']);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'ok' => true,
+                'payment_status' => $status,
+                'label' => SalesTransaction::PAYMENT_STATUSES[$status] ?? $status,
+            ]);
+        }
+
+        return back()->with('status', 'Payment status updated.');
     }
 }

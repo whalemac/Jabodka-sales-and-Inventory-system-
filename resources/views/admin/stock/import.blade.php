@@ -1,4 +1,4 @@
-<x-layouts.app title="Add Stock — Import Delivery">
+<x-layouts.app title="Add Stock — Import Invoice">
 
     <div class="mb-6">
         <a href="{{ route('admin.stock.index') }}"
@@ -8,49 +8,44 @@
             </svg>
             Back to Stock
         </a>
-        <h1 class="text-2xl font-bold text-ink">Add Stock — Import Delivery</h1>
+        <h1 class="text-2xl font-bold text-ink">Import Products — Supplier Invoice</h1>
         <p class="text-sm text-gray-500 mt-0.5">
-            Record a supplier delivery. Each line increments the variant's stock count.
+            One invoice, many products. Search a variant, add the line, repeat, then save.
         </p>
     </div>
 
-    @if($errors->has('items'))
+    @if($errors->any())
     <div class="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
-        {{ $errors->first('items') }}
+        {{ $errors->first() }}
     </div>
     @endif
 
-    {{-- Build variant lookup for JS --}}
     @php
-        $variantMap = [];
+        $variantList = [];
         foreach ($products as $product) {
             foreach ($product->variants as $variant) {
-                $variantMap[$variant->id] = [
-                    'label'  => $product->name . ' — ' . ($variant->label() ?: 'Standard'),
-                    'stock'  => $variant->stock_count,
-                    'low'    => $variant->isLowStock(),
-                    'out'    => $variant->stock_count === 0,
+                $variantList[] = [
+                    'id' => $variant->id,
+                    'label' => $product->name.' — '.($variant->label() ?: 'Standard'),
+                    'stock' => $variant->stock_count,
+                    'type' => $product->source_type,
                 ];
             }
         }
     @endphp
 
-    <div class="max-w-2xl space-y-4"
-         x-data="importForm({{ json_encode($variantMap) }}, {{ $preselect ?? 'null' }})">
+    <div class="max-w-3xl" x-data="invoiceCart({{ json_encode($variantList) }}, {{ $preselect ?? 'null' }})">
+        <form method="POST" action="{{ route('admin.stock.import') }}" class="space-y-4">
+            @csrf
 
-        {{-- Delivery info --}}
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
-            <h2 class="font-semibold text-ink text-sm">Delivery Information</h2>
-
-            <form id="import-form" method="POST" action="{{ route('admin.stock.import') }}">
-                @csrf
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
+                <h2 class="font-semibold text-ink text-sm">Invoice header</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Supplier</label>
-                        <select name="supplier_id"
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Supplier <span class="text-red-500">*</span></label>
+                        <select name="supplier_id" required
                                 class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
-                            <option value="">— No specific supplier —</option>
+                            <option value="">Select supplier…</option>
                             @foreach($suppliers as $supplier)
                             <option value="{{ $supplier->id }}" {{ old('supplier_id') == $supplier->id ? 'selected' : '' }}>
                                 {{ $supplier->supplier_name }}
@@ -59,172 +54,162 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Delivery Notes / Reference</label>
-                        <input type="text" name="reason"
-                               value="{{ old('reason', 'Supplier delivery') }}"
-                               placeholder="e.g. Weekly delivery, Invoice #1234"
-                               class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Invoice # <span class="text-gray-400 font-normal">(auto)</span></label>
+                        <input type="text" name="invoice_number" readonly value="{{ old('invoice_number', $nextInvoiceNumber) }}"
+                               placeholder="{{ $nextInvoiceNumber }}"
+                               class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-gray-50 text-gray-500 text-sm focus:outline-none cursor-not-allowed">
+                        <p class="text-xs text-gray-400 mt-1">Auto-generated, sequential per day (INV-YYYYMMDD-0001).</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Received date <span class="text-red-500">*</span></label>
+                        <input type="date" name="received_date" required value="{{ old('received_date', now()->format('Y-m-d')) }}"
+                               class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 text-sm focus:outline-none focus:border-navy">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Notes</label>
+                        <input type="text" name="notes" value="{{ old('notes') }}" placeholder="Optional"
+                               class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 text-sm focus:outline-none focus:border-navy">
                     </div>
                 </div>
+            </div>
 
-                {{-- Items received --}}
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
+                <h2 class="font-semibold text-ink text-sm">Add line items</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                    <div class="sm:col-span-5 relative">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Search variant</label>
+                        <input type="text" x-model="query" @input="filter()" placeholder="Type a product name…"
+                               class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 text-sm focus:outline-none focus:border-navy">
+                        <div x-show="matches.length" x-cloak class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-auto">
+                            <template x-for="m in matches" :key="m.id">
+                                <button type="button" @click="pick(m)" class="w-full text-left px-3 py-2 text-sm hover:bg-sand">
+                                    <span x-text="m.label"></span>
+                                    <span class="text-xs text-gray-400" x-text="' · ' + m.stock + ' in stock'"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Qty</label>
+                        <input type="number" min="1" x-model.number="draft.qty" class="w-full h-11 px-3 rounded-xl border-2 border-gray-200 text-sm text-center">
+                    </div>
+                    <div class="sm:col-span-3">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Unit cost (₱)</label>
+                        <input type="number" step="0.01" min="0" x-model="draft.cost" placeholder="Optional"
+                               class="w-full h-11 px-3 rounded-xl border-2 border-gray-200 text-sm">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <button type="button" @click="addLine()"
+                                class="w-full h-11 bg-navy text-white text-sm font-semibold rounded-xl hover:bg-navy-dark">Add line</button>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400" x-show="draft.label" x-cloak>
+                    Selected: <span class="font-medium text-ink" x-text="draft.label"></span>
+                </p>
+
                 <div class="border border-gray-200 rounded-xl overflow-hidden">
-                    <div class="flex items-center justify-between px-4 py-3 bg-sand border-b border-gray-200">
-                        <h3 class="text-xs font-semibold text-gray-700 uppercase tracking-wide">Items Received</h3>
-                        <button type="button" @click="addRow()"
-                                class="inline-flex items-center gap-1 text-xs text-navy font-semibold hover:underline">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            </svg>
-                            Add row
-                        </button>
-                    </div>
-
-                    {{-- Column headers (desktop) --}}
-                    <div class="hidden sm:grid sm:grid-cols-12 gap-3 px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        <div class="col-span-7">Product / Variant</div>
-                        <div class="col-span-2 text-center">Current Stock</div>
-                        <div class="col-span-2 text-center">Qty to Add</div>
-                        <div class="col-span-1"></div>
-                    </div>
-
-                    <div class="divide-y divide-gray-100">
-                        <template x-for="(row, idx) in rows" :key="idx">
-                            <div class="px-4 py-3" :class="row.out ? 'bg-red-50/30' : (row.low ? 'bg-yellow-50/30' : '')">
-                                <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-
-                                    {{-- Variant selector --}}
-                                    <div class="sm:col-span-7">
-                                        <label class="block text-xs font-semibold text-gray-500 mb-1 sm:hidden">Product / Variant</label>
-                                        <select :name="`items[${idx}][variant_id]`"
-                                                x-model="row.variantId"
-                                                @change="onVariantChange(idx, $event.target.value)"
-                                                required
-                                                class="w-full h-10 px-3 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
-                                            <option value="">Select variant…</option>
-                                            @foreach($products as $product)
-                                            <optgroup label="{{ $product->name }} ({{ ucfirst($product->source_type) }})">
-                                                @foreach($product->variants as $variant)
-                                                <option value="{{ $variant->id }}">
-                                                    {{ $variant->label() ?: 'Standard' }}
-                                                    ({{ $variant->stock_count }} in stock{{ $variant->isLowStock() ? ' ⚠' : '' }})
-                                                </option>
-                                                @endforeach
-                                            </optgroup>
-                                            @endforeach
-                                        </select>
-
-                                        {{-- Low/out badges below selector --}}
-                                        <div class="mt-1 flex gap-1" x-show="row.variantId">
-                                            <span x-show="row.out" x-cloak
-                                                  class="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                                                Out of stock — needs restocking
-                                            </span>
-                                            <span x-show="row.low && !row.out" x-cloak
-                                                  class="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
-                                                ⚠ Low stock
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {{-- Current stock (read-only display) --}}
-                                    <div class="sm:col-span-2 text-center">
-                                        <label class="block text-xs font-semibold text-gray-500 mb-1 sm:hidden">Current Stock</label>
-                                        <span class="text-base font-bold"
-                                              :class="row.out ? 'text-red-600' : (row.low ? 'text-yellow-600' : 'text-gray-700')"
-                                              x-text="row.variantId ? row.currentStock : '—'">
-                                        </span>
-                                    </div>
-
-                                    {{-- Qty to add --}}
-                                    <div class="sm:col-span-2">
-                                        <label class="block text-xs font-semibold text-gray-500 mb-1 sm:hidden">Qty to Add</label>
-                                        <input type="number"
-                                               :name="`items[${idx}][quantity]`"
-                                               x-model.number="row.quantity"
-                                               min="1" required
-                                               placeholder="Qty"
-                                               class="w-full h-10 px-3 rounded-xl border-2 border-gray-200 bg-white text-sm text-center font-semibold focus:outline-none focus:border-navy">
-                                    </div>
-
-                                    {{-- Remove row --}}
-                                    <div class="sm:col-span-1 flex justify-end sm:justify-center">
-                                        <button type="button"
-                                                @click="removeRow(idx)"
-                                                x-show="rows.length > 1"
-                                                class="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-
-                    <div class="px-4 py-3 bg-gray-50 border-t border-gray-100">
-                        <button type="button" @click="addRow()"
-                                class="w-full h-9 border-2 border-dashed border-gray-300 hover:border-navy rounded-xl text-sm text-gray-400 hover:text-navy font-medium transition">
-                            + Add another variant
-                        </button>
-                    </div>
+                    <template x-if="lines.length === 0">
+                        <p class="px-4 py-8 text-center text-sm text-gray-400">No lines yet. Search and add products received on this invoice.</p>
+                    </template>
+                    <template x-if="lines.length > 0">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-sand border-b-2 border-gray-200 text-left text-xs text-gray-500">
+                                    <th class="px-4 py-2 font-semibold">Variant</th>
+                                    <th class="px-4 py-2 font-semibold text-center">Qty</th>
+                                    <th class="px-4 py-2 font-semibold text-right">Unit cost</th>
+                                    <th class="px-4 py-2 font-semibold text-right">Line total</th>
+                                    <th class="px-4 py-2 font-semibold text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(line, idx) in lines" :key="idx">
+                                    <tr class="border-t border-gray-50">
+                                        <td class="px-4 py-2">
+                                            <input type="hidden" :name="`items[${idx}][variant_id]`" :value="line.variant_id">
+                                            <span x-text="line.label"></span>
+                                        </td>
+                                        <td class="px-4 py-2 text-center">
+                                            <input type="number" min="1" :name="`items[${idx}][quantity_received]`" x-model.number="line.qty" class="w-16 h-9 text-center border-2 border-gray-200 rounded-lg">
+                                        </td>
+                                        <td class="px-4 py-2 text-right">
+                                            <input type="number" step="0.01" min="0" :name="`items[${idx}][unit_cost]`" x-model="line.cost" class="w-24 h-9 text-right border-2 border-gray-200 rounded-lg ml-auto">
+                                        </td>
+                                        <td class="px-4 py-2 text-right font-medium" x-text="lineTotal(line)"></td>
+                                        <td class="px-2 text-center">
+                                            <button type="button" @click="lines.splice(idx, 1)" class="text-red-500 text-xs font-semibold">Remove</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </template>
                 </div>
+                <p class="text-sm text-gray-600">
+                    <span class="font-semibold text-ink" x-text="lines.length"></span> line(s) ·
+                    Total ₱<span class="font-semibold text-ink" x-text="grandTotal()"></span>
+                </p>
+            </div>
 
-                {{-- Summary --}}
-                <div x-show="rows.filter(r => r.variantId && r.quantity > 0).length > 0" x-cloak
-                     class="mt-4 bg-sand rounded-xl px-4 py-3 flex items-center justify-between">
-                    <span class="text-sm text-gray-600">
-                        <span class="font-semibold text-ink" x-text="rows.filter(r => r.variantId && r.quantity > 0).length"></span>
-                        variant(s) ·
-                        <span class="font-semibold text-ink" x-text="rows.reduce((s,r) => s + (parseInt(r.quantity)||0), 0)"></span>
-                        units total
-                    </span>
-                    <span class="text-xs text-gray-400">All counts will increment immediately on submit.</span>
-                </div>
-
-                <div class="flex gap-3 mt-4">
-                    <button type="submit"
-                            class="flex-1 h-12 bg-navy hover:bg-navy-dark text-white font-semibold text-sm rounded-xl transition shadow-sm">
-                        Record Delivery
-                    </button>
-                    <a href="{{ route('admin.stock.index') }}"
-                       class="flex-1 h-12 flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-ink text-sm font-medium rounded-xl transition">
-                        Cancel
-                    </a>
-                </div>
-
-            </form>
-        </div>
+            <div class="flex gap-3">
+                <button type="submit" :disabled="lines.length === 0"
+                        class="flex-1 h-12 bg-navy hover:bg-navy-dark text-white font-semibold text-sm rounded-xl transition disabled:opacity-50">
+                    Save invoice
+                </button>
+                <a href="{{ route('admin.stock.index') }}"
+                   class="flex-1 h-12 flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-ink text-sm font-medium rounded-xl">
+                    Cancel
+                </a>
+            </div>
+        </form>
     </div>
 
 @push('scripts')
 <script>
-function importForm(variantMap, preselect) {
+function invoiceCart(catalog, preselect) {
     return {
-        rows: [{ variantId: preselect ? String(preselect) : '', quantity: 1, currentStock: 0, low: false, out: false }],
-
+        catalog,
+        query: '',
+        matches: [],
+        lines: [],
+        draft: { variant_id: '', label: '', qty: 1, cost: '' },
         init() {
-            // If pre-selected from stock index, update the display fields
             if (preselect) {
-                this.onVariantChange(0, String(preselect));
+                const found = this.catalog.find(v => String(v.id) === String(preselect));
+                if (found) this.pick(found);
             }
         },
-
-        onVariantChange(idx, variantId) {
-            const info = variantMap[variantId] || null;
-            this.rows[idx].variantId    = variantId;
-            this.rows[idx].currentStock = info ? info.stock : 0;
-            this.rows[idx].low          = info ? info.low : false;
-            this.rows[idx].out          = info ? info.out : false;
+        filter() {
+            const q = this.query.toLowerCase().trim();
+            this.matches = q.length < 1 ? [] : this.catalog.filter(v => v.label.toLowerCase().includes(q)).slice(0, 8);
         },
-
-        addRow() {
-            this.rows.push({ variantId: '', quantity: 1, currentStock: 0, low: false, out: false });
+        pick(v) {
+            this.draft.variant_id = v.id;
+            this.draft.label = v.label;
+            this.query = v.label;
+            this.matches = [];
         },
-
-        removeRow(idx) {
-            if (this.rows.length > 1) this.rows.splice(idx, 1);
+        addLine() {
+            if (!this.draft.variant_id) return;
+            this.lines.push({
+                variant_id: this.draft.variant_id,
+                label: this.draft.label,
+                qty: this.draft.qty || 1,
+                cost: this.draft.cost,
+            });
+            this.draft = { variant_id: '', label: '', qty: 1, cost: '' };
+            this.query = '';
+        },
+        lineTotal(line) {
+            const cost = parseFloat(line.cost);
+            if (isNaN(cost)) return '—';
+            return '₱' + (cost * (parseInt(line.qty) || 0)).toFixed(2);
+        },
+        grandTotal() {
+            return this.lines.reduce((s, l) => {
+                const cost = parseFloat(l.cost);
+                return s + (isNaN(cost) ? 0 : cost * (parseInt(l.qty) || 0));
+            }, 0).toFixed(2);
         },
     };
 }

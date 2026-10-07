@@ -15,21 +15,26 @@ class ProductController extends Controller
 {
     public function index(Request $request): View
     {
-        $search     = trim((string) $request->get('q', ''));
+        $search = trim((string) $request->get('q', ''));
         $typeFilter = $request->get('type', '');
+        $statusFilter = $request->get('status', 'all');
 
         $products = Product::query()
             ->with(['supplier', 'variants'])
             ->withCount('variants')
             ->withCount(['variants as low_stock_count' => fn ($q) => $q->lowStock()])
-            ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%")
-                ->orWhere('category', 'like', "%{$search}%"))
+            ->when($search !== '', fn ($q) => $q->where(function ($inner) use ($search) {
+                $inner->where('name', 'like', "%{$search}%")
+                    ->orWhere('category', 'like', "%{$search}%");
+            }))
             ->when($typeFilter !== '', fn ($q) => $q->where('source_type', $typeFilter))
+            ->when($statusFilter === 'active', fn ($q) => $q->where('is_active', true))
+            ->when($statusFilter === 'inactive', fn ($q) => $q->where('is_active', false))
             ->orderBy('name')
             ->paginate(30)
             ->withQueryString();
 
-        return view('admin.products.index', compact('products', 'search', 'typeFilter'));
+        return view('admin.products.index', compact('products', 'search', 'typeFilter', 'statusFilter'));
     }
 
     public function create(): View
@@ -37,14 +42,14 @@ class ProductController extends Controller
         $suppliers = Supplier::query()->orderBy('supplier_name')->get();
 
         return view('admin.products.form', [
-            'product'   => new Product,
+            'product' => new Product,
             'suppliers' => $suppliers,
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $data         = $this->validated($request);
+        $data = $this->validated($request);
         $variantsData = $this->validateVariants($request);
 
         $product = Product::query()->create($data);
@@ -56,10 +61,11 @@ class ProductController extends Controller
         // Every product must have at least one variant; create a default one if none provided
         if ($product->variants()->count() === 0) {
             $product->variants()->create([
-                'size'          => null,
-                'version'       => null,
-                'stock_count'   => 0,
+                'size' => null,
+                'version' => null,
+                'stock_count' => 0,
                 'reorder_level' => 0,
+                'is_active' => true,
             ]);
         }
 
@@ -80,52 +86,35 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product): RedirectResponse
     {
-        $data         = $this->validated($request, $product);
+        $data = $this->validated($request, $product);
         $variantsData = $this->validateVariants($request);
-        $deleteIds    = array_filter(explode(',', $request->input('delete_variant_ids', '')));
 
         $product->update($data);
 
-        // Delete removed variants (only those with no sales history)
-        if ($deleteIds) {
-            $safeToDelete = ProductVariant::query()
-                ->whereIn('id', $deleteIds)
-                ->where('product_id', $product->id)
-                ->whereDoesntHave('salesItems')
-                ->pluck('id');
-
-            ProductVariant::query()->whereIn('id', $safeToDelete)->delete();
-        }
-
-        // Upsert variants from form
-        $submittedIds = [];
         foreach ($variantsData as $v) {
             if (! empty($v['id'])) {
-                // Update existing variant — never touch stock_count here (that's StockService's job)
                 ProductVariant::query()
                     ->where('id', $v['id'])
                     ->where('product_id', $product->id)
                     ->update([
-                        'size'          => $v['size'],
-                        'version'       => $v['version'],
+                        'size' => $v['size'],
+                        'version' => $v['version'],
                         'reorder_level' => $v['reorder_level'],
+                        'is_active' => $v['is_active'],
                     ]);
-                $submittedIds[] = $v['id'];
             } else {
-                // New variant — allow setting opening stock on create
-                $newVariant = $product->variants()->create([
-                    'size'          => $v['size'],
-                    'version'       => $v['version'],
-                    'stock_count'   => (int) ($v['stock_count'] ?? 0),
+                $product->variants()->create([
+                    'size' => $v['size'],
+                    'version' => $v['version'],
+                    'stock_count' => (int) ($v['stock_count'] ?? 0),
                     'reorder_level' => (int) ($v['reorder_level'] ?? 0),
+                    'is_active' => $v['is_active'],
                 ]);
-                $submittedIds[] = $newVariant->id;
             }
         }
 
-        // Guard: if all variants were removed, keep at least the existing ones
         if ($product->fresh()->variants()->count() === 0) {
-            $product->variants()->create(['size' => null, 'version' => null, 'stock_count' => 0, 'reorder_level' => 0]);
+            $product->variants()->create(['size' => null, 'version' => null, 'stock_count' => 0, 'reorder_level' => 0, 'is_active' => true]);
         }
 
         ActivityLogger::log('product.update', $product, null, ['name' => $product->name]);
@@ -135,22 +124,38 @@ class ProductController extends Controller
             ->with('status', 'Product saved.');
     }
 
-    public function destroy(Product $product): RedirectResponse
+    public function toggleActive(Product $product): RedirectResponse
     {
-        // Prevent deleting a product that has been sold
-        $hasSales = $product->variants()->whereHas('salesItems')->exists();
-        if ($hasSales) {
-            return back()->withErrors([
-                'delete' => '"'.$product->name.'" has sales history and cannot be deleted. Archive it instead.',
-            ]);
-        }
+        $wasActive = $product->is_active;
+        $product->update(['is_active' => ! $wasActive]);
 
-        ActivityLogger::log('product.delete', $product, 'Deleted by admin', ['name' => $product->name]);
-        $product->delete();
+        ActivityLogger::log(
+            $product->is_active ? 'product.activate' : 'product.deactivate',
+            $product,
+            null,
+            ['name' => $product->name, 'from' => $wasActive, 'to' => $product->is_active],
+        );
 
-        return redirect()
-            ->route('admin.products.index')
-            ->with('status', 'Product deleted.');
+        return back()->with('status', $product->is_active
+            ? '"'.$product->name.'" activated.'
+            : '"'.$product->name.'" deactivated. It will no longer appear in order search.');
+    }
+
+    public function toggleVariantActive(ProductVariant $variant): RedirectResponse
+    {
+        $wasActive = $variant->is_active;
+        $variant->update(['is_active' => ! $wasActive]);
+
+        ActivityLogger::log(
+            $variant->is_active ? 'variant.activate' : 'variant.deactivate',
+            $variant,
+            null,
+            ['from' => $wasActive, 'to' => $variant->is_active],
+        );
+
+        return back()->with('status', $variant->is_active
+            ? $variant->displayName().' activated.'
+            : $variant->displayName().' deactivated. It will no longer appear in order search.');
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -158,10 +163,10 @@ class ProductController extends Controller
     protected function validated(Request $request, ?Product $product = null): array
     {
         return $request->validate([
-            'name'        => ['required', 'string', 'max:150'],
-            'category'    => ['nullable', 'string', 'max:80'],
+            'name' => ['required', 'string', 'max:150'],
+            'category' => ['nullable', 'string', 'max:80'],
             'source_type' => ['required', 'in:handmade,sourced,consignment'],
-            'base_price'  => ['required', 'numeric', 'min:0'],
+            'base_price' => ['required', 'numeric', 'min:0'],
             'supplier_id' => ['nullable', 'exists:suppliers,id'],
         ]);
     }
@@ -169,20 +174,24 @@ class ProductController extends Controller
     protected function validateVariants(Request $request): array
     {
         $request->validate([
-            'variants'                 => ['sometimes', 'array'],
-            'variants.*.size'          => ['nullable', 'string', 'max:50'],
-            'variants.*.version'       => ['nullable', 'string', 'max:50'],
-            'variants.*.stock_count'   => ['nullable', 'integer', 'min:0'],
+            'variants' => ['sometimes', 'array'],
+            'variants.*.size' => ['nullable', 'string', 'max:50'],
+            'variants.*.version' => ['nullable', 'string', 'max:50'],
+            'variants.*.stock_count' => ['nullable', 'integer', 'min:0'],
             'variants.*.reorder_level' => ['nullable', 'integer', 'min:0'],
+            'variants.*.is_active' => ['sometimes', 'boolean'],
         ]);
 
         return collect($request->input('variants', []))
             ->map(fn ($v) => [
-                'id'            => $v['id'] ?? null,
-                'size'          => filled($v['size'] ?? '')  ? trim($v['size'])    : null,
-                'version'       => filled($v['version'] ?? '') ? trim($v['version']) : null,
-                'stock_count'   => (int) ($v['stock_count']   ?? 0),
+                'id' => $v['id'] ?? null,
+                'size' => filled($v['size'] ?? '') ? trim($v['size']) : null,
+                'version' => filled($v['version'] ?? '') ? trim($v['version']) : null,
+                'stock_count' => (int) ($v['stock_count'] ?? 0),
                 'reorder_level' => (int) ($v['reorder_level'] ?? 0),
+                'is_active' => array_key_exists('is_active', $v)
+                    ? filter_var($v['is_active'], FILTER_VALIDATE_BOOLEAN)
+                    : true,
             ])
             ->values()
             ->all();

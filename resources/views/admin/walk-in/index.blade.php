@@ -81,14 +81,14 @@
             <div class="hidden sm:block overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="bg-sand border-b border-gray-100">
+                        <tr class="bg-sand border-b-2 border-gray-200">
                             <th class="text-left px-5 py-3 font-semibold text-gray-600">Date & Time</th>
                             <th class="text-left px-5 py-3 font-semibold text-gray-600">Customer</th>
                             <th class="text-left px-5 py-3 font-semibold text-gray-600">Items</th>
                             <th class="text-left px-5 py-3 font-semibold text-gray-600">Total</th>
                             <th class="text-left px-5 py-3 font-semibold text-gray-600">Status</th>
-                            <th class="px-5 py-3 font-semibold text-gray-600 text-right">Receipt</th>
-                            <th class="px-5 py-3 font-semibold text-gray-600 text-right">Return</th>
+                            <th class="px-5 py-3 font-semibold text-gray-600 text-center">Receipt</th>
+                            <th class="px-5 py-3 font-semibold text-gray-600 text-center">Return</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
@@ -116,7 +116,7 @@
                                     {{ $sale->isPaid() ? 'Paid' : 'Unpaid' }}
                                 </span>
                             </td>
-                            <td class="px-5 py-3.5 text-right whitespace-nowrap">
+                            <td class="px-5 py-3.5 text-center whitespace-nowrap">
                                 @if($sale->receipt)
                                 <a href="{{ route('admin.receipts.show', $sale->receipt) }}"
                                    class="text-xs text-navy font-medium hover:underline">
@@ -131,7 +131,7 @@
                                 </form>
                                 @endif
                             </td>
-                            <td class="px-5 py-3.5 text-right whitespace-nowrap">
+                            <td class="px-5 py-3.5 text-center whitespace-nowrap">
                                 <a href="{{ route('admin.returns.search', ['q' => $sale->id]) }}"
                                    class="text-xs text-gray-500 hover:text-red-600 font-medium hover:underline">
                                     Return

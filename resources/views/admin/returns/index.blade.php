@@ -95,7 +95,7 @@
             <div class="hidden sm:block overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="bg-sand border-b border-gray-100 text-left">
+                        <tr class="bg-sand border-b-2 border-gray-200 text-left">
                             <th class="px-5 py-3 font-semibold text-gray-600">Date</th>
                             <th class="px-5 py-3 font-semibold text-gray-600">Item</th>
                             <th class="px-5 py-3 font-semibold text-gray-600">Transaction</th>
@@ -103,7 +103,7 @@
                             <th class="px-5 py-3 font-semibold text-gray-600">Reason</th>
                             <th class="px-5 py-3 font-semibold text-gray-600 text-right">Amount</th>
                             <th class="px-5 py-3 font-semibold text-gray-600 text-center">Restocked</th>
-                            <th class="px-5 py-3"></th>
+                            <th class="px-5 py-3 font-semibold text-gray-600 text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
@@ -146,7 +146,7 @@
                                     <span class="text-gray-300 text-xs">—</span>
                                 @endif
                             </td>
-                            <td class="px-5 py-3.5 text-right">
+                            <td class="px-5 py-3.5 text-center">
                                 <a href="{{ route('admin.returns.show', $return) }}"
                                    class="text-xs text-navy font-medium hover:underline">View</a>
                             </td>

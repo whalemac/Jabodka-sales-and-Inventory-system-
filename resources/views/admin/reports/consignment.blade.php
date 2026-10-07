@@ -4,8 +4,15 @@
     <h1 class="text-2xl font-bold text-ink">Consignment Payables</h1>
     <div class="flex items-center gap-3 print:hidden">
         <a href="{{ route('admin.reports.index') }}" class="text-sm text-gray-500 hover:text-navy">← Reports</a>
+        <a href="{{ route('admin.reports.consignment.export') }}"
+           class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-navy text-ink text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Export xlsx
+        </a>
         <button onclick="window.print()"
-                class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-navy text-ink text-sm font-medium px-4 py-2 rounded-xl transition">
+                class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-navy text-ink text-sm font-semibold px-4 py-2.5 rounded-xl transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
             </svg>
@@ -41,7 +48,7 @@
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
-                <tr class="bg-sand border-b border-gray-100 text-left">
+                <tr class="bg-sand border-b-2 border-gray-200 text-left">
                     <th class="px-5 py-3 font-semibold text-gray-600">Partner</th>
                     <th class="px-5 py-3 font-semibold text-gray-600">Product</th>
                     <th class="px-5 py-3 font-semibold text-gray-600 text-center">Qty Sold</th>
@@ -51,7 +58,7 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-50">
-                @foreach($unsettled as $si)
+                @foreach($unsettledRows as $si)
                 @php
                     $ci = $si->variant->consignmentItems->first();
                     $owed = $ci ? $si->quantity * $ci->agreed_base_price : 0;
@@ -75,6 +82,9 @@
             </tfoot>
         </table>
     </div>
+    @if($unsettledRows->hasPages())
+    <div class="px-5 py-4 border-t border-yellow-100">{{ $unsettledRows->links() }}</div>
+    @endif
 </div>
 @endif
 
@@ -83,24 +93,24 @@
     <div class="px-5 py-4 border-b border-gray-100">
         <h2 class="font-semibold text-ink text-sm">Payout History</h2>
     </div>
-    @if($payments->isEmpty())
+    @if($paymentRows->isEmpty())
         <div class="px-6 py-10 text-center text-sm text-gray-400">No payouts generated yet.</div>
     @else
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
-                <tr class="bg-sand border-b border-gray-100 text-left">
+                <tr class="bg-sand border-b-2 border-gray-200 text-left">
                     <th class="px-5 py-3 font-semibold text-gray-600">Partner</th>
                     <th class="px-5 py-3 font-semibold text-gray-600">Period</th>
                     <th class="px-5 py-3 font-semibold text-gray-600 text-center">Items</th>
                     <th class="px-5 py-3 font-semibold text-gray-600 text-right">Amount</th>
                     <th class="px-5 py-3 font-semibold text-gray-600 text-center">Status</th>
                     <th class="px-5 py-3 font-semibold text-gray-600">Paid Date</th>
-                    <th class="px-5 py-3 print:hidden"></th>
+                    <th class="px-5 py-3 text-center print:hidden"></th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-50">
-                @foreach($payments as $payment)
+                @foreach($paymentRows as $payment)
                 <tr class="hover:bg-sand/50 transition">
                     <td class="px-5 py-3 font-medium text-ink">{{ $payment->partner->partner_name }}</td>
                     <td class="px-5 py-3 text-xs text-gray-500">
@@ -120,7 +130,7 @@
                         <br><span class="text-gray-400">{{ $payment->reference_number }}</span>
                         @endif
                     </td>
-                    <td class="px-5 py-3 text-right print:hidden">
+                    <td class="px-5 py-3 text-center print:hidden">
                         <a href="{{ route('admin.consignment.payouts.show', $payment) }}"
                            class="text-xs text-navy font-medium hover:underline">Details</a>
                     </td>
@@ -136,6 +146,9 @@
             </tfoot>
         </table>
     </div>
+    @if($paymentRows->hasPages())
+    <div class="px-5 py-4 border-t border-gray-100">{{ $paymentRows->links() }}</div>
+    @endif
     @endif
 </div>
 

@@ -1,12 +1,12 @@
 <x-layouts.app title="User Management">
 
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
             <h1 class="text-2xl font-bold text-ink">User Management</h1>
             <p class="text-sm text-gray-500 mt-0.5">Admin and Staff accounts</p>
         </div>
         <a href="{{ route('super.users.create') }}"
-           class="inline-flex items-center gap-2 bg-navy hover:bg-navy-dark text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+           class="inline-flex items-center gap-2 bg-navy hover:bg-navy-dark text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition self-start sm:self-auto">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
@@ -21,11 +21,11 @@
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="bg-sand border-b border-gray-100">
+                        <tr class="bg-sand border-b-2 border-gray-200">
                             <th class="text-left px-5 py-3 font-semibold text-gray-600">Username</th>
                             <th class="text-left px-5 py-3 font-semibold text-gray-600">Role</th>
                             <th class="text-left px-5 py-3 font-semibold text-gray-600">Created</th>
-                            <th class="px-5 py-3"></th>
+                            <th class="text-center px-5 py-3 font-semibold text-gray-600">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
@@ -46,7 +46,7 @@
                                 </span>
                             </td>
                             <td class="px-5 py-3.5 text-gray-500">{{ $user->created_at->format('M j, Y') }}</td>
-                            <td class="px-5 py-3.5 text-right">
+                            <td class="px-5 py-3.5 text-center">
                                 @if(!$user->isSuperAdmin())
                                 <a href="{{ route('super.users.edit', $user) }}"
                                    class="inline-flex items-center gap-1.5 text-xs text-navy font-medium hover:underline">
@@ -62,6 +62,12 @@
                     </tbody>
                 </table>
             </div>
+
+            @if($users->hasPages())
+            <div class="px-5 py-4 border-t border-gray-100">
+                {{ $users->links() }}
+            </div>
+            @endif
         @endif
     </div>
 

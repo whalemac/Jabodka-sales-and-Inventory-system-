@@ -21,19 +21,20 @@
 
 <{{ $tag }}
     @if($href) href="{{ $href }}" @endif
-    class="{{ $c['bg'] }} rounded-2xl shadow-sm p-5 flex items-start gap-4 {{ $href ? 'hover:opacity-90 transition cursor-pointer' : '' }}">
+    class="{{ $c['bg'] }} rounded-2xl shadow-sm p-5 flex flex-col {{ $href ? 'hover:opacity-90 transition cursor-pointer' : '' }}">
 
-    @if($icon)
-    <div class="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center {{ $c['icon'] }}">
-        {!! $icon !!}
-    </div>
-    @endif
+    <div class="flex items-start justify-between gap-3">
+        <p class="text-sm font-medium {{ $c['sub'] }} leading-tight">{{ $label }}</p>
 
-    <div class="min-w-0 flex-1">
-        <p class="text-sm font-medium {{ $c['sub'] }} leading-tight truncate">{{ $label }}</p>
-        <p class="text-2xl font-bold {{ $c['text'] }} leading-tight mt-0.5">{{ $value }}</p>
-        @if($sub)
-            <p class="text-xs {{ $c['sub'] }} mt-1">{{ $sub }}</p>
+        @if($icon)
+        <span class="shrink-0 w-10 h-10 -mt-1 -mr-1 rounded-xl flex items-center justify-center {{ $c['icon'] }}">
+            {!! trim($icon) !!}
+        </span>
         @endif
     </div>
+
+    <p class="text-2xl font-bold {{ $c['text'] }} leading-tight mt-auto pt-3 text-right">{{ $value }}</p>
+    @if($sub)
+        <p class="text-xs {{ $c['sub'] }} mt-1 text-right">{{ $sub }}</p>
+    @endif
 </{{ $tag }}>

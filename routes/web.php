@@ -60,6 +60,7 @@ Route::middleware(['auth', 'role:admin'])
         Route::get('online/create', [OnlineOrderController::class, 'create'])->name('online.create');
         Route::post('online', [OnlineOrderController::class, 'store'])->name('online.store');
         Route::patch('online/{transaction}/shipment', [OnlineOrderController::class, 'updateShipment'])->name('online.shipment');
+        Route::patch('online/{transaction}/payment-status', [OnlineOrderController::class, 'updatePaymentStatus'])->name('online.payment-status');
         Route::get('online/{transaction}', [OnlineOrderController::class, 'show'])->name('online.show');
 
         // Payments (standalone confirm for online orders)
@@ -78,7 +79,9 @@ Route::middleware(['auth', 'role:admin'])
         Route::get('returns/{return}', [ReturnController::class, 'show'])->name('returns.show');
 
         // Products
-        Route::resource('products', ProductController::class)->except(['show']);
+        Route::resource('products', ProductController::class)->except(['show', 'destroy']);
+        Route::patch('products/{product}/toggle-active', [ProductController::class, 'toggleActive'])->name('products.toggle-active');
+        Route::patch('products/variants/{variant}/toggle-active', [ProductController::class, 'toggleVariantActive'])->name('products.variants.toggle-active');
 
         // Suppliers
         Route::resource('suppliers', SupplierController::class)->except(['show']);
@@ -100,6 +103,8 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('consignment/items', [ConsignmentController::class, 'storeItem'])->name('consignment.items.store');
         Route::get('consignment/items/{item}/edit', [ConsignmentController::class, 'editItem'])->name('consignment.items.edit');
         Route::put('consignment/items/{item}', [ConsignmentController::class, 'updateItem'])->name('consignment.items.update');
+        Route::get('consignment/items/{item}/pullout', [ConsignmentController::class, 'pulloutForm'])->name('consignment.items.pullout-form');
+        Route::post('consignment/items/{item}/pullout', [ConsignmentController::class, 'storePullout'])->name('consignment.items.pullout');
         Route::get('consignment/payouts', [ConsignmentController::class, 'payouts'])->name('consignment.payouts');
         Route::post('consignment/payouts', [ConsignmentController::class, 'generatePayout'])->name('consignment.payouts.generate');
         Route::get('consignment/payouts/{payment}', [ConsignmentController::class, 'showPayout'])->name('consignment.payouts.show');
@@ -111,6 +116,12 @@ Route::middleware(['auth', 'role:admin'])
         Route::get('reports/stock-movement', [ReportController::class, 'stockMovement'])->name('reports.stock-movement');
         Route::get('reports/best-sellers', [ReportController::class, 'bestSellers'])->name('reports.best-sellers');
         Route::get('reports/consignment', [ReportController::class, 'consignment'])->name('reports.consignment');
+
+        // Report exports (xlsx)
+        Route::get('reports/sales/export', [ReportController::class, 'exportSales'])->name('reports.sales.export');
+        Route::get('reports/best-sellers/export', [ReportController::class, 'exportBestSellers'])->name('reports.best-sellers.export');
+        Route::get('reports/stock-movement/export', [ReportController::class, 'exportStockMovement'])->name('reports.stock-movement.export');
+        Route::get('reports/consignment/export', [ReportController::class, 'exportConsignment'])->name('reports.consignment.export');
     });
 
 // ─── Staff routes ─────────────────────────────────────────────────────────────

@@ -42,13 +42,13 @@ class ProductionController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'variant_id'        => ['required', 'exists:product_variants,id'],
+            'variant_id' => ['required', 'exists:product_variants,id'],
             'quantity_produced' => ['required', 'integer', 'min:1'],
-            'production_date'   => ['required', 'date', 'before_or_equal:today'],
-            'notes'             => ['nullable', 'string', 'max:500'],
-            'materials'                 => ['sometimes', 'array'],
-            'materials.*.material_id'   => ['required', 'exists:raw_materials,id'],
-            'materials.*.quantity'      => ['required', 'numeric', 'min:0.01'],
+            'production_date' => ['required', 'date', 'before_or_equal:today'],
+            'notes' => ['nullable', 'string', 'max:500'],
+            'materials' => ['sometimes', 'array'],
+            'materials.*.material_id' => ['required', 'exists:raw_materials,id'],
+            'materials.*.quantity' => ['required', 'numeric', 'min:0.01'],
         ]);
 
         $materialsUsed = collect($request->input('materials', []))

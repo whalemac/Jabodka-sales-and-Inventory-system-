@@ -23,6 +23,7 @@ class ConsignmentSaleSeeder extends Seeder
 
         if ($alreadySeeded) {
             $this->command->info('Consignment sales already seeded, skipping.');
+
             return;
         }
 
@@ -34,16 +35,18 @@ class ConsignmentSaleSeeder extends Seeder
 
         if (! $windbreaker || ! $hydration) {
             $this->command->warn('Consignment variants not found — run DemoDataSeeder first.');
+
             return;
         }
 
         // Walk-in sale of 2 consignment items (unsettled)
         DB::transaction(function () use ($admin, $windbreaker, $hydration) {
             $tx = SalesTransaction::create([
-                'customer_id'      => null,
-                'user_id'          => $admin->id,
-                'channel'          => 'walk_in',
+                'customer_id' => null,
+                'user_id' => $admin->id,
+                'channel' => 'walk_in',
                 'transaction_date' => now()->subDays(10),
+                'shipment_status' => null,
             ]);
             SalesItem::create(['transaction_id' => $tx->id, 'variant_id' => $windbreaker->id, 'quantity' => 1, 'price_at_sale' => 1200.00]);
             SalesItem::create(['transaction_id' => $tx->id, 'variant_id' => $hydration->id,   'quantity' => 1, 'price_at_sale' => 1800.00]);
@@ -51,31 +54,32 @@ class ConsignmentSaleSeeder extends Seeder
             $hydration->decrement('stock_count', 1);
             Payment::create([
                 'transaction_id' => $tx->id,
-                'user_id'        => $admin->id,
+                'user_id' => $admin->id,
                 'payment_method' => 'cash',
-                'amount_paid'    => 3000.00,
+                'amount_paid' => 3000.00,
                 'payment_status' => 'confirmed',
-                'payment_date'   => now()->subDays(10),
+                'payment_date' => now()->subDays(10),
             ]);
         });
 
         // A second sale (a different partner)
         DB::transaction(function () use ($admin, $windbreaker) {
             $tx = SalesTransaction::create([
-                'customer_id'      => null,
-                'user_id'          => $admin->id,
-                'channel'          => 'walk_in',
+                'customer_id' => null,
+                'user_id' => $admin->id,
+                'channel' => 'walk_in',
                 'transaction_date' => now()->subDays(3),
+                'shipment_status' => null,
             ]);
             SalesItem::create(['transaction_id' => $tx->id, 'variant_id' => $windbreaker->id, 'quantity' => 2, 'price_at_sale' => 1200.00]);
             $windbreaker->decrement('stock_count', 2);
             Payment::create([
                 'transaction_id' => $tx->id,
-                'user_id'        => $admin->id,
+                'user_id' => $admin->id,
                 'payment_method' => 'gcash',
-                'amount_paid'    => 2400.00,
+                'amount_paid' => 2400.00,
                 'payment_status' => 'confirmed',
-                'payment_date'   => now()->subDays(3),
+                'payment_date' => now()->subDays(3),
                 'reference_number' => '09999888777',
             ]);
         });

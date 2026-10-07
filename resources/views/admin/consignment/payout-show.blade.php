@@ -8,7 +8,7 @@
             </svg>
             Back to Payouts
         </a>
-        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
                 <h1 class="text-2xl font-bold text-ink">Payout #{{ $payment->id }}</h1>
                 <p class="text-sm text-gray-500 mt-0.5">
@@ -16,7 +16,7 @@
                     · {{ $payment->period_start->format('M j') }} – {{ $payment->period_end->format('M j, Y') }}
                 </p>
             </div>
-            <span class="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full self-start
+            <span class="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full
                 {{ $payment->payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' }}">
                 <span class="w-2 h-2 rounded-full {{ $payment->payment_status === 'paid' ? 'bg-green-500' : 'bg-yellow-500' }}"></span>
                 {{ $payment->payment_status === 'paid' ? 'Paid' : 'Pending Payment' }}
@@ -40,7 +40,7 @@
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="bg-sand border-b border-gray-100 text-left">
+                            <tr class="bg-sand border-b-2 border-gray-200 text-left">
                                 <th class="px-5 py-3 font-semibold text-gray-600">Product / Variant</th>
                                 <th class="px-5 py-3 font-semibold text-gray-600 text-center">Qty Sold</th>
                                 <th class="px-5 py-3 font-semibold text-gray-600 text-right">Base Price</th>
@@ -49,7 +49,7 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-50">
-                            @foreach($payment->items as $line)
+                            @foreach($lines as $line)
                             <tr class="hover:bg-sand/50 transition">
                                 <td class="px-5 py-3.5 font-medium text-ink">
                                     {{ $line->consignmentItem->variant->displayName() }}
@@ -78,6 +78,10 @@
                         </tfoot>
                     </table>
                 </div>
+
+                @if($lines->hasPages())
+                <div class="px-5 py-4 border-t border-gray-100">{{ $lines->links() }}</div>
+                @endif
             </div>
         </div>
 

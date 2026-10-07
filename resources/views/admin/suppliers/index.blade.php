@@ -1,7 +1,7 @@
 <x-layouts.app title="Suppliers">
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h1 class="text-2xl font-bold text-ink">Suppliers</h1>
-        <a href="{{ route('admin.suppliers.create') }}" class="inline-flex items-center gap-2 bg-navy hover:bg-navy-dark text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition">+ Add Supplier</a>
+        <a href="{{ route('admin.suppliers.create') }}" class="inline-flex items-center gap-2 bg-navy hover:bg-navy-dark text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition self-start sm:self-auto">+ Add Supplier</a>
     </div>
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         @if($suppliers->isEmpty())
@@ -9,11 +9,11 @@
         @else
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
-                <thead><tr class="bg-sand border-b border-gray-100">
+                <thead><tr class="bg-sand border-b-2 border-gray-200">
                     <th class="text-left px-5 py-3 font-semibold text-gray-600">Supplier Name</th>
                     <th class="text-left px-5 py-3 font-semibold text-gray-600">Contact</th>
                     <th class="text-left px-5 py-3 font-semibold text-gray-600">Products</th>
-                    <th class="px-5 py-3"></th>
+                    <th class="text-center px-5 py-3 font-semibold text-gray-600">Actions</th>
                 </tr></thead>
                 <tbody class="divide-y divide-gray-50">
                 @foreach($suppliers as $supplier)
@@ -21,7 +21,7 @@
                     <td class="px-5 py-3.5 font-medium text-ink">{{ $supplier->supplier_name }}</td>
                     <td class="px-5 py-3.5 text-gray-500 text-xs">{{ $supplier->contact_details ?? '—' }}</td>
                     <td class="px-5 py-3.5 text-gray-600">{{ $supplier->products_count }}</td>
-                    <td class="px-5 py-3.5 text-right">
+                    <td class="px-5 py-3.5 text-center whitespace-nowrap">
                         <a href="{{ route('admin.suppliers.edit', $supplier) }}" class="text-xs text-navy font-medium hover:underline">Edit</a>
                         <form method="POST" action="{{ route('admin.suppliers.destroy', $supplier) }}" class="inline ml-3" onsubmit="return confirm('Delete?')">
                             @csrf @method('DELETE')

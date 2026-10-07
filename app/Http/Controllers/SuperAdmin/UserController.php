@@ -15,7 +15,7 @@ class UserController extends Controller
     public function index(): View
     {
         return view('super.users.index', [
-            'users' => User::query()->latest()->get(),
+            'users' => User::query()->latest()->paginate(15),
         ]);
     }
 

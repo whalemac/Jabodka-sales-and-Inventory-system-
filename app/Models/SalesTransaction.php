@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SalesTransaction extends Model
 {
+    /** @use HasFactory\SalesTransactionFactory */
+    use HasFactory;
+
     protected $fillable = [
         'customer_id',
         'user_id',
@@ -73,5 +77,40 @@ class SalesTransaction extends Model
     public function isPaid(): bool
     {
         return $this->amountPaid() >= $this->grandTotal() && $this->grandTotal() > 0;
+    }
+
+    public const SHIPMENT_STATUSES = [
+        'pending' => 'Pending',
+        'preparing' => 'Preparing',
+        'shipped' => 'Shipped',
+        'in_transit' => 'In Transit',
+        'delivered' => 'Delivered',
+        'returned' => 'Returned',
+    ];
+
+    public const PAYMENT_STATUSES = [
+        'pending' => 'Pending',
+        'confirmed' => 'Confirmed',
+        'refunded' => 'Refunded',
+    ];
+
+    public function derivedPaymentStatus(): string
+    {
+        $payments = $this->relationLoaded('payments') ? $this->payments : $this->payments()->get();
+
+        if ($payments->contains(fn (Payment $p) => $p->payment_status === 'refunded')
+            && ! $payments->contains(fn (Payment $p) => $p->payment_status === 'confirmed')) {
+            return 'refunded';
+        }
+
+        if ($this->isPaid()) {
+            return 'confirmed';
+        }
+
+        if ($payments->contains(fn (Payment $p) => $p->payment_status === 'confirmed')) {
+            return 'confirmed';
+        }
+
+        return 'pending';
     }
 }

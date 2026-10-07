@@ -23,10 +23,13 @@ class WalkInOrderController extends Controller
         $q = trim((string) $request->get('q', ''));
         $variants = ProductVariant::query()
             ->with('product')
+            ->sellable()
             ->when($q !== '', function ($query) use ($q) {
-                $query->whereHas('product', fn ($p) => $p->where('name', 'like', "%{$q}%"))
-                    ->orWhere('size', 'like', "%{$q}%")
-                    ->orWhere('version', 'like', "%{$q}%");
+                $query->where(function ($inner) use ($q) {
+                    $inner->whereHas('product', fn ($p) => $p->where('name', 'like', "%{$q}%"))
+                        ->orWhere('size', 'like', "%{$q}%")
+                        ->orWhere('version', 'like', "%{$q}%");
+                });
             })
             ->orderBy('id')
             ->limit(20)

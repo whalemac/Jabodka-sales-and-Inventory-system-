@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\ConsignmentPayment;
 use App\Models\ConsignmentPaymentItem;
 use App\Models\ProductVariant;
+use App\Models\SalesItem;
 use App\Models\SalesTransaction;
+use App\Models\Subscription;
+use App\Models\User;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -16,8 +19,8 @@ class DashboardController extends Controller
 
         if ($user->isSuperAdmin()) {
             return view('dashboard.super', [
-                'userCount' => \App\Models\User::query()->count(),
-                'activeSubs' => \App\Models\Subscription::query()->where('status', 'active')->count(),
+                'userCount' => User::query()->count(),
+                'activeSubs' => Subscription::query()->where('status', 'active')->count(),
             ]);
         }
 
@@ -35,7 +38,7 @@ class DashboardController extends Controller
 
         $pendingOnline = SalesTransaction::query()
             ->where('channel', 'online')
-            ->where('shipment_status', 'pending_payment')
+            ->whereDoesntHave('payments', fn ($q) => $q->where('payment_status', 'confirmed'))
             ->count();
 
         $settledItemIds = ConsignmentPaymentItem::query()->pluck('sales_item_id');
@@ -46,7 +49,7 @@ class DashboardController extends Controller
             'lowStock' => $lowStock,
             'pendingOnline' => $pendingOnline,
             'payablesDue' => $payablesDue,
-            'unsettledCount' => \App\Models\SalesItem::query()
+            'unsettledCount' => SalesItem::query()
                 ->whereNotIn('id', $settledItemIds)
                 ->whereHas('variant.product', fn ($q) => $q->where('source_type', 'consignment'))
                 ->count(),

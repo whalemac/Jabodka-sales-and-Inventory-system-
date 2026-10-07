@@ -138,7 +138,10 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Contact Number</label>
-                    <input type="text" x-model="contactNumber" placeholder="09xx-xxx-xxxx"
+                    <input type="text" x-model="contactNumber"
+                           inputmode="numeric" maxlength="11" autocomplete="tel"
+                           @input="contactNumber = contactNumber.replace(/\D/g, '').slice(0, 11)"
+                           placeholder="09XXXXXXXXX"
                            class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                 </div>
             </div>
@@ -175,8 +178,9 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Amount Tendered (₱)</label>
                     <input type="number" step="0.01" min="0" x-model.number="amountPaid"
+                           inputmode="decimal"
                            :placeholder="cartTotal().toFixed(2)"
-                           class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
+                           class="no-spinner w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                 </div>
 
                 {{-- GCash reference --}}

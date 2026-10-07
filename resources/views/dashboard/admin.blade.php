@@ -17,8 +17,11 @@
             sub="All channels"
             color="navy"
             href="{{ route('admin.walk-in.index') }}"
-            :icon="'<svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z\"/></svg>'"
-        />
+        >
+            <x-slot:icon>
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </x-slot:icon>
+        </x-kpi-card>
 
         <x-kpi-card
             label="Low Stock"
@@ -26,8 +29,11 @@
             sub="{{ $lowStock === 1 ? 'variant needs restocking' : 'variants need restocking' }}"
             color="{{ $lowStock > 0 ? 'red' : 'green' }}"
             href="{{ route('admin.stock.index') }}"
-            :icon="'<svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM4 7V5a2 2 0 012-2h12a2 2 0 012 2v2\"/></svg>'"
-        />
+        >
+            <x-slot:icon>
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM4 7V5a2 2 0 012-2h12a2 2 0 012 2v2"/></svg>
+            </x-slot:icon>
+        </x-kpi-card>
 
         <x-kpi-card
             label="Pending Online"
@@ -35,8 +41,11 @@
             sub="{{ $pendingOnline === 1 ? 'order awaiting payment' : 'orders awaiting payment' }}"
             color="{{ $pendingOnline > 0 ? 'accent' : 'white' }}"
             href="{{ route('admin.online.index') }}"
-            :icon="'<svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M3 3h18l-2 13H5L3 3zm0 0l-.5-2H1M9 21a1 1 0 100-2 1 1 0 000 2zm10 0a1 1 0 100-2 1 1 0 000 2z\"/></svg>'"
-        />
+        >
+            <x-slot:icon>
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h18l-2 13H5L3 3zm0 0l-.5-2H1M9 21a1 1 0 100-2 1 1 0 000 2zm10 0a1 1 0 100-2 1 1 0 000 2z"/></svg>
+            </x-slot:icon>
+        </x-kpi-card>
 
         <x-kpi-card
             label="Consignment Due"
@@ -44,8 +53,11 @@
             sub="{{ $unsettledCount }} unsettled {{ Str::plural('item', $unsettledCount) }}"
             color="{{ $payablesDue > 0 ? 'accent' : 'white' }}"
             href="{{ route('admin.consignment.payouts') }}"
-            :icon="'<svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z\"/></svg>'"
-        />
+        >
+            <x-slot:icon>
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            </x-slot:icon>
+        </x-kpi-card>
     </div>
 
     {{-- Quick Actions --}}
@@ -205,9 +217,12 @@
             </div>
             @php
                 $pendingOrders = \App\Models\SalesTransaction::query()
-                    ->with(['items', 'customer'])
+                    ->with(['items', 'customer', 'payments'])
                     ->where('channel', 'online')
-                    ->whereIn('shipment_status', ['pending_payment', 'ready_to_ship'])
+                    ->where(function ($q) {
+                        $q->whereIn('shipment_status', ['pending', 'preparing'])
+                            ->orWhereDoesntHave('payments', fn ($p) => $p->where('payment_status', 'confirmed'));
+                    })
                     ->latest('transaction_date')
                     ->limit(5)
                     ->get();
@@ -226,17 +241,26 @@
                         </div>
                         <div class="text-right ml-4 shrink-0">
                             @php
-                                $statusColors = [
-                                    'pending_payment' => 'bg-red-100 text-red-700',
-                                    'ready_to_ship'   => 'bg-blue-100 text-blue-700',
+                                $pay = $order->derivedPaymentStatus();
+                                $payColors = [
+                                    'pending' => 'bg-gray-100 text-gray-700',
+                                    'confirmed' => 'bg-green-100 text-green-700',
+                                    'refunded' => 'bg-red-100 text-red-700',
                                 ];
-                                $statusLabels = [
-                                    'pending_payment' => 'Unpaid',
-                                    'ready_to_ship'   => 'Ready',
+                                $shipColors = [
+                                    'pending' => 'bg-gray-100 text-gray-600',
+                                    'preparing' => 'bg-blue-100 text-blue-700',
+                                    'shipped' => 'bg-indigo-100 text-indigo-700',
+                                    'in_transit' => 'bg-purple-100 text-purple-700',
+                                    'delivered' => 'bg-green-100 text-green-700',
+                                    'returned' => 'bg-orange-100 text-orange-700',
                                 ];
                             @endphp
-                            <span class="inline-block text-xs font-semibold px-2 py-0.5 rounded-full {{ $statusColors[$order->shipment_status] ?? 'bg-gray-100 text-gray-600' }}">
-                                {{ $statusLabels[$order->shipment_status] ?? $order->shipment_status }}
+                            <span class="inline-block text-xs font-semibold px-2 py-0.5 rounded-full {{ $payColors[$pay] ?? 'bg-gray-100 text-gray-600' }}">
+                                {{ \App\Models\SalesTransaction::PAYMENT_STATUSES[$pay] ?? $pay }}
+                            </span>
+                            <span class="inline-block text-xs font-semibold px-2 py-0.5 rounded-full mt-0.5 {{ $shipColors[$order->shipment_status] ?? 'bg-gray-100 text-gray-600' }}">
+                                {{ \App\Models\SalesTransaction::SHIPMENT_STATUSES[$order->shipment_status] ?? $order->shipment_status }}
                             </span>
                             <p class="text-xs text-gray-500 mt-0.5">₱{{ number_format($order->grandTotal(), 2) }}</p>
                         </div>

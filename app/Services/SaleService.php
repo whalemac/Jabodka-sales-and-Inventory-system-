@@ -61,11 +61,21 @@ class SaleService
                 'shipping_fee' => $options['shipping_fee'] ?? null,
                 'courier' => $options['courier'] ?? ($channel === 'online' ? 'J&T Express' : null),
                 'tracking_number' => $options['tracking_number'] ?? null,
-                'shipment_status' => $channel === 'online' ? 'pending_payment' : null,
+                'shipment_status' => $channel === 'online' ? 'pending' : null,
             ]);
 
             foreach ($lines as $line) {
-                $variant = ProductVariant::query()->with('product')->findOrFail($line['variant_id']);
+                $variant = ProductVariant::query()
+                    ->with('product')
+                    ->sellable()
+                    ->find($line['variant_id']);
+
+                if (! $variant) {
+                    throw new RuntimeException(
+                        'One of the selected products is no longer available for sale. Refresh and try again.'
+                    );
+                }
+
                 $qty = (int) $line['quantity'];
                 $price = isset($line['price']) ? (float) $line['price'] : (float) $variant->product->base_price;
 
@@ -91,9 +101,7 @@ class SaleService
                     'reference_number' => $options['payment_reference'] ?? null,
                 ]);
 
-                if ($channel === 'online' && $status === 'confirmed') {
-                    $transaction->update(['shipment_status' => 'ready_to_ship']);
-                }
+                // Payment and shipment statuses move independently.
             }
 
             if (! empty($options['issue_receipt'])) {
@@ -125,13 +133,58 @@ class SaleService
 
             $transaction->load(['items', 'payments']);
 
-            if ($transaction->channel === 'online' && $transaction->isPaid()) {
-                $transaction->update(['shipment_status' => 'ready_to_ship']);
-            }
-
             ActivityLogger::log('payment.confirm', $payment, null, $data, $user);
 
             return $payment;
+        });
+    }
+
+    public function setPaymentStatus(SalesTransaction $transaction, User $user, string $status): string
+    {
+        return DB::transaction(function () use ($transaction, $user, $status) {
+            $transaction->load(['items', 'payments']);
+            $old = $transaction->derivedPaymentStatus();
+
+            if ($status === 'confirmed') {
+                $pending = $transaction->payments->firstWhere('payment_status', 'pending');
+                if ($pending) {
+                    $pending->update([
+                        'payment_status' => 'confirmed',
+                        'payment_date' => now(),
+                    ]);
+                } elseif (! $transaction->isPaid()) {
+                    $due = max(0.01, $transaction->grandTotal() - $transaction->amountPaid());
+                    Payment::query()->create([
+                        'transaction_id' => $transaction->id,
+                        'user_id' => $user->id,
+                        'payment_method' => $transaction->payments->first()?->payment_method ?? 'gcash',
+                        'amount_paid' => $due,
+                        'payment_status' => 'confirmed',
+                        'payment_date' => now(),
+                    ]);
+                }
+            } elseif ($status === 'refunded') {
+                Payment::query()
+                    ->where('transaction_id', $transaction->id)
+                    ->where('payment_status', 'confirmed')
+                    ->update(['payment_status' => 'refunded']);
+            } elseif ($status === 'pending') {
+                Payment::query()
+                    ->where('transaction_id', $transaction->id)
+                    ->whereIn('payment_status', ['confirmed', 'refunded'])
+                    ->update(['payment_status' => 'pending', 'payment_date' => null]);
+            }
+
+            $transaction->unsetRelation('payments');
+            $transaction->load('payments');
+            $new = $transaction->derivedPaymentStatus();
+
+            ActivityLogger::log('order.payment.status', $transaction, null, [
+                'from' => $old,
+                'to' => $new,
+            ], $user);
+
+            return $new;
         });
     }
 }

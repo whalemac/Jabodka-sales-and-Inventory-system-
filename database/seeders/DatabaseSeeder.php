@@ -18,17 +18,17 @@ class DatabaseSeeder extends Seeder
             [
                 'username' => 'superadmin',
                 'password' => Hash::make('password'),
-                'role'     => 'super_admin',
+                'role' => 'super_admin',
             ],
             [
                 'username' => 'admin',
                 'password' => Hash::make('password'),
-                'role'     => 'admin',
+                'role' => 'admin',
             ],
             [
                 'username' => 'staff',
                 'password' => Hash::make('password'),
-                'role'     => 'staff',
+                'role' => 'staff',
             ],
         ];
 

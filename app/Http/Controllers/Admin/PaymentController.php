@@ -18,8 +18,8 @@ class PaymentController extends Controller
     public function confirm(Request $request, SalesTransaction $transaction): RedirectResponse
     {
         $data = $request->validate([
-            'payment_method'   => ['required', 'in:cash,gcash'],
-            'amount_paid'      => ['required', 'numeric', 'min:0.01'],
+            'payment_method' => ['required', 'in:cash,gcash'],
+            'amount_paid' => ['required', 'numeric', 'min:0.01'],
             'reference_number' => ['nullable', 'string', 'max:80'],
         ]);
 

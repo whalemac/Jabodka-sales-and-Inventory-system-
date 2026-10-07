@@ -30,7 +30,7 @@
                     </span>
                 </a>
 
-                {{-- Desktop: Quick-action buttons (center/right, role-aware) --}}
+                <!-- {{-- Desktop: Quick-action buttons (center/right, role-aware) --}}
                 <div class="hidden md:flex items-center gap-2">
                     @auth
                         @if(auth()->user()->isAdmin())
@@ -58,7 +58,7 @@
                             </a>
                         @endif
                     @endauth
-                </div>
+                </div> -->
 
                 {{-- Right: Nav tabs + user menu --}}
                 <div class="flex items-center gap-2">
@@ -214,6 +214,17 @@
             </p>
         </div>
     </footer>
+
+    {{-- Scrolling over a numeric amount field must not change its value --}}
+    <script>
+        document.addEventListener('wheel', function (e) {
+            var el = e.target;
+            if (el && el.type === 'number' && el.classList.contains('no-spinner')
+                && document.activeElement === el) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
 
     @stack('scripts')
 </body>
