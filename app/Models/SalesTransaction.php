@@ -94,6 +94,29 @@ class SalesTransaction extends Model
         'refunded' => 'Refunded',
     ];
 
+    /**
+     * One-way shipment state machine (A4). Transitions may skip forward, but
+     * never move backwards; every path ends in `delivered` or `returned`.
+     */
+    public const SHIPMENT_TRANSITIONS = [
+        'pending'    => ['preparing', 'shipped', 'returned'],
+        'preparing'  => ['shipped', 'in_transit', 'returned'],
+        'shipped'    => ['in_transit', 'delivered', 'returned'],
+        'in_transit' => ['delivered', 'returned'],
+        'delivered'  => ['returned'],
+        'returned'   => [],
+    ];
+
+    /**
+     * One-way payment state machine (A4): Pending → Confirmed (irreversible),
+     * and a confirmed payment can only be moved to Refunded.
+     */
+    public const PAYMENT_TRANSITIONS = [
+        'pending'    => ['confirmed'],
+        'confirmed'  => ['refunded'],
+        'refunded'   => [],
+    ];
+
     public function derivedPaymentStatus(): string
     {
         $payments = $this->relationLoaded('payments') ? $this->payments : $this->payments()->get();

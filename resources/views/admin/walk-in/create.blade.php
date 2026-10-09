@@ -125,7 +125,7 @@
     </div>
 
     {{-- ===== RIGHT: Customer + Payment + Submit ===== --}}
-    <div class="lg:col-span-2 space-y-4">
+    <div class="lg:col-span-2 space-y-4" id="checkout-fields">
 
         {{-- Customer info (optional) --}}
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -134,14 +134,16 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Name</label>
                     <input type="text" x-model="customerName" placeholder="Walk-in customer"
+                           data-validate="name" data-field="Customer name"
                            class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Contact Number</label>
                     <input type="text" x-model="contactNumber"
-                           inputmode="numeric" maxlength="11" autocomplete="tel"
-                           @input="contactNumber = contactNumber.replace(/\D/g, '').slice(0, 11)"
-                           placeholder="09XXXXXXXXX"
+                           inputmode="tel" autocomplete="tel"
+                           data-numeric="phone" data-validate="phone" data-field="Contact number"
+                           maxlength="20"
+                           placeholder="0917 123 4567"
                            class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                 </div>
             </div>
@@ -177,8 +179,9 @@
                 {{-- Amount paid --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Amount Tendered (₱)</label>
-                    <input type="number" step="0.01" min="0" x-model.number="amountPaid"
-                           inputmode="decimal"
+                    <input type="text" x-model.number="amountPaid"
+                           inputmode="decimal" autocomplete="off"
+                           data-numeric="money" data-validate="money" data-field="Amount tendered"
                            :placeholder="cartTotal().toFixed(2)"
                            class="no-spinner w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                 </div>
@@ -186,7 +189,9 @@
                 {{-- GCash reference --}}
                 <div x-show="paymentMethod === 'gcash'" x-cloak>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">GCash Reference #</label>
-                    <input type="text" x-model="paymentReference" placeholder="e.g. 1234567890"
+                    <input type="text" x-model="paymentReference"
+                           data-numeric="alnum" data-validate="digits" data-field="GCash reference"
+                           placeholder="e.g. 1234567890"
                            class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                 </div>
 
@@ -213,6 +218,9 @@
         <div>
             <p x-show="submitError" x-cloak x-text="submitError"
                class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3"></p>
+
+            {{-- Cart-level server errors (e.g. insufficient stock) --}}
+            <div data-error-for="items" class="js-field-error" hidden></div>
 
             {{-- Hidden form submitted via JS --}}
             <form id="pos-form" method="POST" action="{{ route('admin.walk-in.store') }}">
@@ -242,12 +250,27 @@
     </div>
 </div>
 
-{{-- Server-side validation errors (from redirect back) --}}
-@if($errors->any())
-<div class="fixed bottom-4 right-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 shadow-lg max-w-sm" x-data="{ show: true }" x-show="show" x-cloak>
-    <p class="text-sm font-semibold text-red-700">{{ $errors->first() }}</p>
-    <button @click="show = false" class="absolute top-2 right-3 text-red-400 hover:text-red-600">×</button>
-</div>
+{{-- Receipt preview modal (auto-opens after a sale with receipt) --}}
+<x-modal name="receipt-modal" title="Receipt" size="md">
+    <div class="receipt-modal-body"></div>
+    <x-slot:footer>
+        <button type="button" onclick="window.Jabodka && window.Jabodka.printModal('receipt-modal')"
+                class="inline-flex items-center gap-2 h-10 px-4 bg-navy hover:bg-navy-dark text-white text-sm font-semibold rounded-xl transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+            </svg>
+            Print Receipt
+        </button>
+    </x-slot:footer>
+</x-modal>
+
+@if(session('receipt'))
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const url = {{ Js::from(route('admin.receipts.partial', ['receipt' => session('receipt')])) }};
+    if (window.Jabodka) window.Jabodka.modalUrl('receipt-modal', url);
+});
+</script>
 @endif
 
 @push('scripts')
@@ -268,7 +291,6 @@ function posCart() {
         submitError: '',
 
         init() {
-            // Focus search on load
             this.$nextTick(() => {
                 document.querySelector('input[placeholder*="Type product"]')?.focus();
             });
@@ -334,19 +356,24 @@ function posCart() {
         },
 
         change() {
-            return this.amountPaid - this.cartTotal();
+            const paid = parseFloat(this.amountPaid) || 0;
+            return paid - this.cartTotal();
         },
 
         submit() {
             this.submitError = '';
+
+            if (window.Jabodka && !window.Jabodka.guard(document.getElementById('checkout-fields'))) {
+                return;
+            }
+
             if (this.cart.length === 0) { this.submitError = 'Add at least one item.'; return; }
             if (!this.paymentMethod) { this.submitError = 'Select a payment method.'; return; }
-            if (this.amountPaid <= 0) { this.submitError = 'Enter the amount paid.'; return; }
-            if (this.amountPaid < this.cartTotal()) {
+            if (this.change() < 0) {
                 this.submitError = 'Amount paid is less than the total (₱' + this.cartTotal().toFixed(2) + ').';
                 return;
             }
-            if (this.paymentMethod === 'gcash' && !this.paymentReference.trim()) {
+            if (this.paymentMethod === 'gcash' && !(this.paymentReference || '').trim()) {
                 this.submitError = 'Enter the GCash reference number.';
                 return;
             }

@@ -117,11 +117,11 @@
                     </label>
                     <div class="relative">
                         <span class="absolute left-4 top-3 text-gray-400 text-sm">₱</span>
-                        <input type="number" name="refund_amount"
+                        <input type="text" inputmode="decimal" name="refund_amount"
                                x-model.number="refundAmount"
-                               step="0.01" min="0"
-                               :max="maxRefund"
-                               class="w-full h-11 pl-8 pr-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy
+                               data-numeric="money" data-validate="money" data-field="Refund amount"
+                               autocomplete="off"
+                               class="w-full h-11 pl-8 pr-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy no-spinner
                                       {{ $errors->has('refund_amount') ? 'border-red-400' : '' }}">
                     </div>
                     <div class="flex justify-between text-xs text-gray-500">
@@ -161,8 +161,9 @@
                     <label class="block text-sm font-semibold text-ink mb-1.5">
                         Reason <span class="text-red-500">*</span>
                     </label>
-                    <textarea name="reason" rows="3" required
+                    <textarea name="reason" rows="3"
                               placeholder="Describe the reason for this return…"
+                              data-validate="required|max:500" data-field="Reason"
                               class="w-full px-4 py-3 rounded-xl border-2 text-sm resize-none focus:outline-none focus:border-navy
                                      {{ $errors->has('reason') ? 'border-red-400' : 'border-gray-200' }}">{{ old('reason') }}</textarea>
                     @error('reason')

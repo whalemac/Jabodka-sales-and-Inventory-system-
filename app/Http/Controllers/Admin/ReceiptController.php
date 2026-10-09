@@ -15,14 +15,25 @@ class ReceiptController extends Controller
 
     public function show(Receipt $receipt): View
     {
-        $receipt->load([
+        return view('admin.receipts.show', ['receipt' => $this->load($receipt)]);
+    }
+
+    /**
+     * Receipt fragment rendered inside a modal (A5) — never a full navigation.
+     */
+    public function partial(Receipt $receipt): View
+    {
+        return view('admin.receipts._fragment', ['receipt' => $this->load($receipt)]);
+    }
+
+    protected function load(Receipt $receipt): Receipt
+    {
+        return $receipt->load([
             'transaction.items.variant.product',
             'transaction.customer',
             'transaction.payments',
             'user',
         ]);
-
-        return view('admin.receipts.show', compact('receipt'));
     }
 
     public function issue(SalesTransaction $transaction): RedirectResponse

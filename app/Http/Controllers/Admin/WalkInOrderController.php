@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreWalkInOrderRequest;
 use App\Models\ProductVariant;
 use App\Models\SalesTransaction;
 use App\Services\SaleService;
@@ -45,20 +46,9 @@ class WalkInOrderController extends Controller
         return response()->json($variants);
     }
 
-    public function store(Request $request, SaleService $sales): RedirectResponse
+    public function store(StoreWalkInOrderRequest $request, SaleService $sales): RedirectResponse
     {
-        $data = $request->validate([
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.variant_id' => ['required', 'exists:product_variants,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'items.*.price' => ['required', 'numeric', 'min:0'],
-            'walk_in_name' => ['nullable', 'string', 'max:100'],
-            'contact_number' => ['nullable', 'string', 'max:30'],
-            'payment_method' => ['required', 'in:cash,gcash'],
-            'amount_paid' => ['required', 'numeric', 'min:0'],
-            'payment_reference' => ['nullable', 'string', 'max:80'],
-            'issue_receipt' => ['sometimes', 'boolean'],
-        ]);
+        $data = $request->validated();
 
         try {
             $sale = $sales->checkout(auth()->user(), 'walk_in', $data['items'], [
@@ -74,12 +64,15 @@ class WalkInOrderController extends Controller
             return back()->withErrors(['items' => $e->getMessage()])->withInput();
         }
 
-        $message = 'Sale recorded.';
+        // Receipts open inside a modal on the same page (A5) — no navigation away.
         if ($sale->receipt) {
-            return redirect()->route('admin.receipts.show', $sale->receipt)->with('status', $message.' Receipt issued.');
+            return redirect()
+                ->route('admin.walk-in.create')
+                ->with('status', 'Sale recorded. Receipt issued.')
+                ->with('receipt', $sale->receipt->id);
         }
 
-        return redirect()->route('admin.walk-in.create')->with('status', $message);
+        return redirect()->route('admin.walk-in.create')->with('status', 'Sale recorded.');
     }
 
     public function index(): View

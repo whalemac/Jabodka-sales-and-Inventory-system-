@@ -42,7 +42,8 @@
 
         <form method="POST" action="{{ route('staff.production.store') }}"
               id="prod-form"
-              @submit.prevent="showConfirm = true">
+              data-no-guard
+              @submit.prevent="if (Jabodka.guard($event.target)) { showConfirm = true }">
             @csrf
 
             @if($errors->any())
@@ -75,6 +76,7 @@
                             $grouped = $variants->groupBy(fn($v) => $v->product->name);
                         @endphp
                         <select name="variant_id" required
+                                data-validate="required" data-field="Product"
                                 @change="updatePreview($event.target)"
                                 class="w-full h-12 px-4 rounded-xl border-2 text-sm focus:outline-none focus:border-navy
                                        {{ $errors->has('variant_id') ? 'border-red-400' : 'border-gray-200' }}">
@@ -114,6 +116,7 @@
                             <input name="quantity_produced" type="number" min="1" required
                                    x-model.number="qtyProduced"
                                    value="{{ old('quantity_produced', 1) }}"
+                                   data-numeric="integer" data-validate="required|integer|min:1" data-field="Quantity produced"
                                    class="w-full h-12 px-4 rounded-xl border-2 text-lg font-bold text-center focus:outline-none focus:border-navy
                                           {{ $errors->has('quantity_produced') ? 'border-red-400' : 'border-gray-200' }}">
                             @error('quantity_produced')
@@ -127,6 +130,7 @@
                             <input name="production_date" type="date" required
                                    value="{{ old('production_date', now()->format('Y-m-d')) }}"
                                    max="{{ now()->format('Y-m-d') }}"
+                                   data-validate="required|date" data-field="Production date"
                                    class="w-full h-12 px-4 rounded-xl border-2 border-gray-200 text-sm focus:outline-none focus:border-navy">
                         </div>
                     </div>
@@ -136,6 +140,7 @@
                         <label class="block text-sm font-semibold text-gray-700 mb-1.5">Notes (optional)</label>
                         <textarea name="notes" rows="2"
                                   placeholder="Anything to note about this batch…"
+                                  data-validate="max:500" data-field="Notes"
                                   class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-sm resize-none focus:outline-none focus:border-navy">{{ old('notes') }}</textarea>
                     </div>
                 </div>
@@ -190,6 +195,7 @@
                                     <select :name="`materials[${idx}][material_id]`"
                                             x-model="m.id"
                                             required
+                                            data-validate="required" data-field="Material"
                                             class="w-full h-11 px-3 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                                         <option value="">— Choose material —</option>
                                         @foreach($rawMaterialsList as $mat)
@@ -202,12 +208,13 @@
                                 </div>
                                 <div class="sm:col-span-2">
                                     <label class="block text-xs font-semibold text-gray-500 mb-1.5">Quantity Used</label>
-                                    <input type="number"
+                                    <input type="text" inputmode="decimal"
                                            :name="`materials[${idx}][quantity]`"
                                            x-model="m.qty"
-                                           min="0.01" step="0.01" required
+                                           required
                                            placeholder="e.g. 2.5"
-                                           class="w-full h-11 px-3 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
+                                           data-numeric="money" data-validate="required|money|min:0.01" data-field="Quantity used"
+                                           class="no-spinner w-full h-11 px-3 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                                 </div>
                                 <div class="sm:col-span-1 flex items-end justify-end sm:justify-center">
                                     <button type="button"

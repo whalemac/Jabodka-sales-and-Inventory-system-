@@ -19,18 +19,20 @@
     </button>
     @endforeach
 
-    {{-- Custom date range --}}
+    {{-- Custom date range (validated server-side as dates with from <= to) --}}
     <div class="flex items-center gap-2">
         <input type="date" name="from"
                value="{{ $range === 'custom' ? \Carbon\Carbon::parse($from)->format('Y-m-d') : '' }}"
                onchange="if (!this.value) return; if (!this.form.to.value) this.form.to.value = this.value; this.form.submit();"
                placeholder="From"
+               data-validate="date" data-field="From date"
                class="h-9 px-3 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
         <span class="text-gray-400 text-sm">–</span>
         <input type="date" name="to"
                value="{{ $range === 'custom' ? \Carbon\Carbon::parse($to)->format('Y-m-d') : '' }}"
                onchange="if (!this.value) return; if (!this.form.from.value) this.form.from.value = this.value; this.form.submit();"
                placeholder="To"
+               data-validate="date" data-field="To date"
                class="h-9 px-3 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
     </div>
 

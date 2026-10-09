@@ -13,6 +13,45 @@
         </div>
     </div>
 
+    {{-- Persistent "Unsettled / Overdue" KPI cards — every partner's outstanding
+         balance, always visible regardless of the paginated detail below. --}}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-5">
+        <div class="flex items-baseline justify-between gap-3 mb-3">
+            <div>
+                <h2 class="font-semibold text-ink text-sm">Unsettled / Overdue</h2>
+                <p class="text-xs text-gray-400 mt-0.5">Consignment sales not yet covered by any payout</p>
+            </div>
+            <p class="text-xs font-semibold text-gray-500 shrink-0">
+                {{ $unsettledCounts->sum() }} {{ Str::plural('sale', $unsettledCounts->sum()) }}
+                · ₱{{ number_format($unsettledAmounts->sum(), 2) }}
+            </p>
+        </div>
+
+        @if($unsettledCounts->isEmpty())
+        <div class="flex items-center gap-2 rounded-xl bg-green-50 border border-green-100 px-4 py-3">
+            <svg class="w-4 h-4 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <p class="text-xs text-green-700">Nothing outstanding — every consignment sale is settled.</p>
+        </div>
+        @else
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+            @foreach($unsettledCounts->sortDesc() as $partnerId => $count)
+            @php
+                $kpiPartner = $partners->firstWhere('id', $partnerId);
+                $kpiAmount = $unsettledAmounts[$partnerId] ?? 0;
+            @endphp
+            <div class="rounded-xl border-2 {{ $count > 0 ? 'border-accent/30 bg-accent/5' : 'border-gray-100 bg-white' }} p-3">
+                <p class="text-xs font-semibold text-ink truncate">{{ $kpiPartner?->partner_name ?? 'Unassigned' }}</p>
+                <p class="text-xl font-bold text-ink leading-tight mt-1">{{ $count }}</p>
+                <p class="text-[11px] text-gray-500">{{ Str::plural('unsettled sale', $count) }}</p>
+                <p class="text-sm font-bold text-accent mt-1">₱{{ number_format($kpiAmount, 2) }}</p>
+            </div>
+            @endforeach
+        </div>
+        @endif
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {{-- ===== LEFT: Generate payout + unsettled ===== --}}
@@ -49,13 +88,15 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">From</label>
-                            <input type="date" name="period_start" required
+                            <input type="date" name="period_start"
+                                   data-validate="required|date" data-field="Period start"
                                    value="{{ old('period_start', now()->startOfMonth()->format('Y-m-d')) }}"
                                    class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1.5">To</label>
-                            <input type="date" name="period_end" required
+                            <input type="date" name="period_end"
+                                   data-validate="required|date" data-field="Period end"
                                    value="{{ old('period_end', now()->format('Y-m-d')) }}"
                                    class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                         </div>
@@ -142,7 +183,7 @@
                 @else
                 <div class="divide-y divide-gray-50">
                     @foreach($payments as $payout)
-                    <div class="px-5 py-4" x-data="{ markingPaid: false }">
+                    <div class="px-5 py-4">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
@@ -177,7 +218,7 @@
                                     <a href="{{ route('admin.consignment.payouts.show', $payout) }}"
                                        class="text-xs text-navy font-medium hover:underline">Details</a>
                                     @if($payout->payment_status === 'pending')
-                                    <button @click="markingPaid = !markingPaid"
+                                    <button type="button" onclick="window.Jabodka && window.Jabodka.modalOpen('mark-paid-{{ $payout->id }}')"
                                             class="text-xs text-green-700 font-semibold hover:underline">
                                         Mark Paid
                                     </button>
@@ -186,32 +227,28 @@
                             </div>
                         </div>
 
-                        {{-- Mark paid inline form --}}
+                        {{-- Mark paid popup form --}}
                         @if($payout->payment_status === 'pending')
-                        <div x-show="markingPaid" x-cloak class="mt-3 pt-3 border-t border-gray-100">
+                        <x-modal name="mark-paid-{{ $payout->id }}" title="Mark Payout as Paid" subtitle="Pay ₱{{ number_format($payout->total_amount, 2) }} to {{ $payout->partner->partner_name }}." size="md">
                             <form method="POST" action="{{ route('admin.consignment.payouts.mark-paid', $payout) }}"
-                                  class="flex flex-col sm:flex-row gap-2">
+                                  class="space-y-3">
                                 @csrf @method('PATCH')
-                                <div class="flex-1">
+                                <div>
                                     <label class="block text-xs font-semibold text-gray-600 mb-1">
                                         GCash Reference # <span class="text-gray-400 font-normal">(optional)</span>
                                     </label>
                                     <input type="text" name="reference_number"
                                            placeholder="e.g. 09123456789"
-                                           class="w-full h-10 px-3 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
+                                           data-label="GCash reference"
+                                           data-validate="max:80" data-field="GCash reference"
+                                           class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                                 </div>
-                                <div class="flex gap-2 items-end">
-                                    <button type="submit"
-                                            class="h-10 px-4 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition">
-                                        Confirm Paid
-                                    </button>
-                                    <button type="button" @click="markingPaid = false"
-                                            class="h-10 px-3 bg-gray-100 hover:bg-gray-200 text-ink text-sm font-medium rounded-xl transition">
-                                        Cancel
-                                    </button>
-                                </div>
+                                <button type="submit"
+                                        class="w-full h-11 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition">
+                                    Confirm Paid
+                                </button>
                             </form>
-                        </div>
+                        </x-modal>
                         @endif
                     </div>
                     @endforeach

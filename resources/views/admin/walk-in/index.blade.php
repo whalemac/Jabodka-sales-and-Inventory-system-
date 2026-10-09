@@ -1,6 +1,7 @@
 <x-layouts.app title="Walk-In Orders">
 
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6"
+         x-data="{ openReceipt(url) { if (window.Jabodka) window.Jabodka.modalUrl('receipt-modal', url); } }">
         <div>
             <h1 class="text-2xl font-bold text-ink">Walk-In Orders</h1>
             <p class="text-sm text-gray-500 mt-0.5">{{ $sales->total() }} total transactions</p>
@@ -59,13 +60,14 @@
                         </div>
                         @endforeach
                         @if($sale->receipt)
-                        <a href="{{ route('admin.receipts.show', $sale->receipt) }}"
-                           class="inline-flex items-center gap-1 text-xs text-navy font-medium mt-2 hover:underline">
+                        <button type="button"
+                                @click="openReceipt('{{ route('admin.receipts.partial', $sale->receipt) }}')"
+                                class="inline-flex items-center gap-1 text-xs text-navy font-medium mt-2 hover:underline">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                             </svg>
                             View Receipt ({{ $sale->receipt->receipt_number }})
-                        </a>
+                        </button>
                         @else
                         <form method="POST" action="{{ route('admin.receipts.issue', $sale) }}" class="inline">
                             @csrf
@@ -118,10 +120,11 @@
                             </td>
                             <td class="px-5 py-3.5 text-center whitespace-nowrap">
                                 @if($sale->receipt)
-                                <a href="{{ route('admin.receipts.show', $sale->receipt) }}"
-                                   class="text-xs text-navy font-medium hover:underline">
+                                <button type="button"
+                                        @click="openReceipt('{{ route('admin.receipts.partial', $sale->receipt) }}')"
+                                        class="text-xs text-navy font-medium hover:underline">
                                     {{ $sale->receipt->receipt_number }}
-                                </a>
+                                </button>
                                 @else
                                 <form method="POST" action="{{ route('admin.receipts.issue', $sale) }}" class="inline">
                                     @csrf
@@ -151,5 +154,19 @@
             @endif
         @endif
     </div>
+
+    {{-- Receipt preview modal (A5) --}}
+    <x-modal name="receipt-modal" title="Receipt" size="md">
+        <div class="receipt-modal-body"></div>
+        <x-slot:footer>
+            <button type="button" onclick="window.Jabodka && window.Jabodka.printModal('receipt-modal')"
+                    class="inline-flex items-center gap-2 h-10 px-4 bg-navy hover:bg-navy-dark text-white text-sm font-semibold rounded-xl transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                </svg>
+                Print Receipt
+            </button>
+        </x-slot:footer>
+    </x-modal>
 
 </x-layouts.app>

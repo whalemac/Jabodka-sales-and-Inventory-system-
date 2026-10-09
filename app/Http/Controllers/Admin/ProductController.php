@@ -20,7 +20,7 @@ class ProductController extends Controller
         $statusFilter = $request->get('status', 'all');
 
         $products = Product::query()
-            ->with(['supplier', 'variants'])
+            ->with(['supplier', 'variants.consignmentItems.partner'])
             ->withCount('variants')
             ->withCount(['variants as low_stock_count' => fn ($q) => $q->lowStock()])
             ->when($search !== '', fn ($q) => $q->where(function ($inner) use ($search) {
@@ -37,14 +37,21 @@ class ProductController extends Controller
         return view('admin.products.index', compact('products', 'search', 'typeFilter', 'statusFilter'));
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         $suppliers = Supplier::query()->orderBy('supplier_name')->get();
 
-        return view('admin.products.form', [
+        $data = [
             'product' => new Product,
             'suppliers' => $suppliers,
-        ]);
+        ];
+
+        // Modal popup flow: return just the form fragment for Jabodka.modalUrl().
+        if ($request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return view('admin.products._form', $data);
+        }
+
+        return view('admin.products.form', $data);
     }
 
     public function store(Request $request): RedirectResponse
@@ -76,10 +83,15 @@ class ProductController extends Controller
             ->with('status', 'Product "'.$product->name.'" created. Review variants below.');
     }
 
-    public function edit(Product $product): View
+    public function edit(Request $request, Product $product): View
     {
         $suppliers = Supplier::query()->orderBy('supplier_name')->get();
         $product->load('variants');
+
+        // Modal popup flow: return just the form fragment for Jabodka.modalUrl().
+        if ($request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return view('admin.products._form', compact('product', 'suppliers'));
+        }
 
         return view('admin.products.form', compact('product', 'suppliers'));
     }

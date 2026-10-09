@@ -139,19 +139,20 @@ class SaleService
         });
     }
 
-    public function setPaymentStatus(SalesTransaction $transaction, User $user, string $status): string
+    public function setPaymentStatus(SalesTransaction $transaction, User $user, string $status, ?string $reference = null): string
     {
-        return DB::transaction(function () use ($transaction, $user, $status) {
+        return DB::transaction(function () use ($transaction, $user, $status, $reference) {
             $transaction->load(['items', 'payments']);
             $old = $transaction->derivedPaymentStatus();
 
             if ($status === 'confirmed') {
                 $pending = $transaction->payments->firstWhere('payment_status', 'pending');
                 if ($pending) {
-                    $pending->update([
+                    $pending->update(array_filter([
                         'payment_status' => 'confirmed',
                         'payment_date' => now(),
-                    ]);
+                        'reference_number' => $reference ?? $pending->reference_number,
+                    ], fn ($v) => $v !== null));
                 } elseif (! $transaction->isPaid()) {
                     $due = max(0.01, $transaction->grandTotal() - $transaction->amountPaid());
                     Payment::query()->create([
@@ -161,7 +162,14 @@ class SaleService
                         'amount_paid' => $due,
                         'payment_status' => 'confirmed',
                         'payment_date' => now(),
+                        'reference_number' => $reference,
                     ]);
+                } elseif ($reference) {
+                    // Already paid but a reference was supplied — stamp it on the latest confirmed payment.
+                    $confirmed = $transaction->payments->where('payment_status', 'confirmed')->last();
+                    if ($confirmed && ! $confirmed->reference_number) {
+                        $confirmed->update(['reference_number' => $reference]);
+                    }
                 }
             } elseif ($status === 'refunded') {
                 Payment::query()

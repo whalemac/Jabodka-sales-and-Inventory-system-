@@ -33,6 +33,7 @@
                     <input name="material_name" type="text" required
                            value="{{ old('material_name', $material->material_name) }}"
                            placeholder="e.g. Nylon Cord, Canvas Fabric"
+                           data-validate="required|name|max:150" data-field="Material Name"
                            class="w-full h-11 px-4 rounded-xl border-2 {{ $errors->has('material_name') ? 'border-red-400' : 'border-gray-200' }} bg-white text-sm focus:outline-none focus:border-navy">
                     @error('material_name')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
@@ -48,6 +49,7 @@
                            value="{{ old('unit', $material->unit) }}"
                            placeholder="e.g. meters, pcs, spools, rolls"
                            list="unit-suggestions"
+                           data-letters data-validate="required|max:30" data-field="Unit of Measure"
                            class="w-full h-11 px-4 rounded-xl border-2 {{ $errors->has('unit') ? 'border-red-400' : 'border-gray-200' }} bg-white text-sm focus:outline-none focus:border-navy">
                     <datalist id="unit-suggestions">
                         @foreach(['meters', 'pcs', 'spools', 'rolls', 'kg', 'grams', 'liters', 'pairs'] as $u)
@@ -67,9 +69,10 @@
                         Current Stock on Hand
                     </label>
                     <div class="flex items-center gap-2">
-                        <input name="stock_quantity" type="number" step="0.01" min="0"
+                        <input name="stock_quantity" type="text" inputmode="decimal"
                                value="{{ old('stock_quantity', 0) }}"
-                               class="flex-1 h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
+                               data-numeric="money" data-validate="money|min:0" data-field="Stock on Hand"
+                               class="no-spinner flex-1 h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                         <span class="text-sm text-gray-500">(units)</span>
                     </div>
                     <p class="text-xs text-gray-400 mt-1">

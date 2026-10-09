@@ -36,8 +36,9 @@
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h18l-2 13H5L3 3zm0 0l-.5-2H1M9 21a1 1 0 100-2 1 1 0 000 2zm10 0a1 1 0 100-2 1 1 0 000 2z"/></svg>
         </x-slot:icon>
     </x-kpi-card>
+    {{-- Damage rows are stored negative, so this KPI shows the signed total (same convention as the table below) --}}
     <x-kpi-card label="Damage / Loss"     value="{{ number_format($totalDamage) }}"
-        color="{{ $totalDamage > 0 ? 'red' : 'white' }}" />
+        color="{{ $totalDamage != 0 ? 'red' : 'white' }}" />
 </div>
 
 {{-- Unified movements table --}}

@@ -9,13 +9,6 @@
     <h1 class="text-xl font-bold text-ink">New Online Order</h1>
 </div>
 
-{{-- Server errors from redirect back --}}
-@if($errors->any())
-<div class="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
-    {{ $errors->first() }}
-</div>
-@endif
-
 <div x-data="onlineOrder()" x-init="init()" class="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
     {{-- ===== LEFT: Product search + cart ===== --}}
@@ -125,7 +118,7 @@
     </div>
 
     {{-- ===== RIGHT: Customer + Shipping + Payment ===== --}}
-    <div class="lg:col-span-2 space-y-4">
+    <div class="lg:col-span-2 space-y-4" id="checkout-box">
 
         {{-- Customer & Shipping --}}
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
@@ -135,38 +128,30 @@
                 <label class="block text-xs font-semibold text-gray-600 mb-1">
                     Full Name <span class="text-red-500">*</span>
                 </label>
-                <input type="text" x-model="customerName" required
+                <input type="text" x-model="customerName"
+                       data-validate="name" data-field="Customer name"
                        placeholder="Facebook name or full name"
-                       class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy"
-                       :class="validationErrors.customerName ? 'border-red-400' : ''">
-                <p x-show="validationErrors.customerName" x-cloak x-text="validationErrors.customerName"
-                   class="text-xs text-red-600 mt-1"></p>
+                       class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
             </div>
 
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1">
                     Contact Number <span class="text-red-500">*</span>
                 </label>
-                <input type="text" x-model="contactNumber" required
-                       inputmode="numeric" maxlength="11" autocomplete="tel"
-                       @input="contactNumber = contactNumber.replace(/\D/g, '').slice(0, 11)"
+                <input type="text" x-model="contactNumber"
+                       inputmode="tel" autocomplete="tel" maxlength="20"
+                       data-numeric="phone" data-validate="phone" data-field="Contact number"
                        placeholder="09XXXXXXXXX"
-                       class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy"
-                       :class="validationErrors.contactNumber ? 'border-red-400' : ''">
-                <p x-show="validationErrors.contactNumber" x-cloak x-text="validationErrors.contactNumber"
-                   class="text-xs text-red-600 mt-1"></p>
+                       class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
             </div>
 
             <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1">
                     Shipping Address <span class="text-red-500">*</span>
                 </label>
-                <textarea x-model="shippingAddress" required rows="2"
+                <textarea x-model="shippingAddress" rows="2"
                           placeholder="Street, Barangay, City"
-                          class="w-full px-4 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm resize-none focus:outline-none focus:border-navy"
-                          :class="validationErrors.shippingAddress ? 'border-red-400' : ''"></textarea>
-                <p x-show="validationErrors.shippingAddress" x-cloak x-text="validationErrors.shippingAddress"
-                   class="text-xs text-red-600 mt-1"></p>
+                          class="w-full px-4 py-2.5 rounded-xl border-2 border-gray-200 bg-white text-sm resize-none focus:outline-none focus:border-navy"></textarea>
             </div>
 
             <div>
@@ -179,13 +164,24 @@
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Courier</label>
-                    <input type="text" x-model="courier" placeholder="J&T Express"
-                           class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
+                    <select x-model="courier"
+                            class="w-full h-11 px-3 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
+                        <option value="J&T Express">J&T Express</option>
+                        <option value="Flash Express">Flash Express</option>
+                        <option value="LBC">LBC</option>
+                        <option value="Shopee Xpress">Shopee Xpress</option>
+                        <option value="JRS Express">JRS Express</option>
+                        <option value="Lalamove">Lalamove</option>
+                        <option value="Grab Express">Grab Express</option>
+                        <option value="Pickup">Store Pickup</option>
+                        <option value="Other">Other</option>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Shipping Fee (₱)</label>
-                    <input type="number" step="0.01" min="0" x-model.number="shippingFee"
-                           inputmode="decimal"
+                    <input type="text" x-model.number="shippingFee"
+                           inputmode="decimal" autocomplete="off"
+                           data-numeric="money"
                            placeholder="0.00"
                            class="no-spinner w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                 </div>
@@ -215,8 +211,9 @@
             <div x-show="method !== ''" x-cloak class="space-y-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Amount Paid (₱)</label>
-                    <input type="number" step="0.01" min="0" x-model.number="amountPaid"
-                           inputmode="decimal"
+                    <input type="text" x-model.number="amountPaid"
+                           inputmode="decimal" autocomplete="off"
+                           data-numeric="money"
                            :placeholder="grandTotal().toFixed(2)"
                            class="no-spinner w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                 </div>
@@ -224,6 +221,7 @@
                 <div x-show="method === 'gcash'" x-cloak>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">GCash Reference # <span class="text-red-500">*</span></label>
                     <input type="text" x-model="paymentReference"
+                           data-numeric="alnum"
                            placeholder="e.g. 09123456789"
                            class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                 </div>
@@ -240,6 +238,9 @@
         <div>
             <p x-show="submitError" x-cloak x-text="submitError"
                class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3"></p>
+
+            {{-- Cart-level server errors (e.g. insufficient stock) --}}
+            <div data-error-for="items" class="js-field-error" hidden></div>
 
             <form id="online-form" method="POST" action="{{ route('admin.online.store') }}">
                 @csrf
@@ -336,20 +337,27 @@ function onlineOrder() {
         grandTotal() { return this.cartTotal() + parseFloat(this.shippingFee || 0); },
 
         validate() {
-            this.validationErrors = {};
+            this.submitError = '';  // field-level errors render inline via Jabodka.guard
+
+            if (window.Jabodka && !window.Jabodka.guard(document.getElementById('checkout-box'))) {
+                return false;
+            }
+
             if (!this.cart.length)              { this.submitError = 'Add at least one item.'; return false; }
-            if (!this.customerName.trim())       { this.validationErrors.customerName = 'Required'; this.submitError = 'Fill in required customer fields.'; return false; }
-            if (!this.contactNumber.trim())      { this.validationErrors.contactNumber = 'Required'; this.submitError = 'Fill in required customer fields.'; return false; }
-            if (!this.shippingAddress.trim())    { this.validationErrors.shippingAddress = 'Required'; this.submitError = 'Fill in required customer fields.'; return false; }
-            if (this.paymentMethod === 'gcash' && !this.paymentReference.trim()) {
+            if (!this.shippingAddress.trim())    { this.submitError = 'Fill in the shipping address.'; return false; }
+            if (this.paymentMethod && !(parseFloat(this.amountPaid) > 0)) {
+                this.submitError = 'Enter the amount paid.';
+                return false;
+            }
+            if (this.paymentMethod === 'gcash' && !(this.paymentReference || '').trim()) {
                 this.submitError = 'Enter the GCash reference number.';
                 return false;
             }
+            if (!this.courier) { this.submitError = 'Select a courier.'; return false; }
             return true;
         },
 
         submit() {
-            this.submitError = '';
             if (!this.validate()) return;
 
             this.submitting = true;

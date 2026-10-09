@@ -38,8 +38,8 @@
 
 @include('admin.reports._range_filter', ['action' => route('admin.reports.sales')])
 
-{{-- KPI cards --}}
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+{{-- KPI cards — "Returns" is a positive figure (units + refunded pesos), not a negative deduction --}}
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
     <x-kpi-card label="Total Revenue"   value="₱{{ number_format($totalRevenue, 2) }}"   color="navy" />
     <x-kpi-card label="Transactions"    value="{{ $totalTransactions }}"                  color="white" />
     <x-kpi-card label="Avg Order Value" value="₱{{ number_format($avgOrderValue, 2) }}"  color="white" />
@@ -47,6 +47,10 @@
                 value="{{ $walkInCount }} / {{ $onlineCount }}"
                 sub="₱{{ number_format($walkInRevenue, 2) }} / ₱{{ number_format($onlineRevenue, 2) }}"
                 color="white" />
+    <x-kpi-card label="Returns"
+                value="{{ $returnedUnits }}"
+                sub="{{ Str::plural('unit', $returnedUnits) }} returned · ₱{{ number_format($returnedRefunds, 2) }} refunded"
+                color="{{ $returnedUnits > 0 ? 'red' : 'white' }}" />
 </div>
 
 {{-- Revenue chart --}}

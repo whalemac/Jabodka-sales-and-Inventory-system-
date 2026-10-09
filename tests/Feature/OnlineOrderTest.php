@@ -289,6 +289,24 @@ class OnlineOrderTest extends TestCase
         $this->assertStringContainsString('In Transit', $body);
     }
 
+    public function test_status_badges_render_text_server_side_and_update_buttons_carry_order_data(): void
+    {
+        // Pending-payment order + preparing order: both labels must be in the
+        // raw HTML (never dependent on client-side JS to appear).
+        $this->onlineOrder(['shipment_status' => 'pending']);
+        $this->onlineOrder(['shipment_status' => 'preparing']);
+
+        $body = $this->actingAs($this->owner)
+            ->get(route('admin.online.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('>Pending<', $body);
+        $this->assertStringContainsString('>Preparing<', $body);
+        $this->assertStringContainsString('openStatusModal(this)', $body);
+        $this->assertStringContainsString('data-ship="preparing"', $body);
+    }
+
     public function test_view_action_still_opens_the_full_order_detail(): void
     {
         $order = $this->onlineOrder();

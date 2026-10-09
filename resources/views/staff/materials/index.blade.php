@@ -74,10 +74,11 @@
                         <form method="POST" action="{{ route('staff.materials.receive', $mat) }}" class="flex gap-2">
                             @csrf
                             <div class="flex-1">
-                                <input type="number" name="quantity" x-model="qty"
-                                       min="0.01" step="0.01" required
+                                <input type="text" inputmode="decimal" name="quantity" x-model="qty"
+                                       required
                                        placeholder="Enter quantity"
-                                       class="w-full h-10 px-3 rounded-lg border-2 border-green-200 text-sm focus:outline-none focus:border-green-500">
+                                       data-numeric="money" data-validate="required|money|min:0.01" data-field="Quantity received"
+                                       class="no-spinner w-full h-10 px-3 rounded-lg border-2 border-green-200 text-sm focus:outline-none focus:border-green-500">
                             </div>
                             <span class="flex items-center text-sm text-green-700 font-medium">{{ $mat->unit }}</span>
                             <button type="submit"
@@ -128,10 +129,11 @@
                                     <form method="POST" action="{{ route('staff.materials.receive', $mat) }}"
                                           class="flex items-center gap-2">
                                         @csrf
-                                        <input type="number" name="quantity" x-model="qty"
-                                               min="0.01" step="0.01" required
+                                        <input type="text" inputmode="decimal" name="quantity" x-model="qty"
+                                               required
                                                placeholder="Qty received"
-                                               class="w-36 h-9 px-3 rounded-xl border-2 border-gray-200 text-sm focus:outline-none focus:border-navy">
+                                               data-numeric="money" data-validate="required|money|min:0.01" data-field="Quantity received"
+                                               class="no-spinner w-36 h-9 px-3 rounded-xl border-2 border-gray-200 text-sm focus:outline-none focus:border-navy">
                                         <span class="text-sm text-gray-500">{{ $mat->unit }}</span>
                                         <button type="submit"
                                                 class="h-9 px-4 bg-navy hover:bg-navy-dark text-white text-xs font-semibold rounded-xl transition">

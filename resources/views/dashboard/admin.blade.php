@@ -63,27 +63,47 @@
     {{-- Quick Actions --}}
     <div class="mb-8">
         <h2 class="text-base font-semibold text-ink mb-3">Quick Actions</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
 
-            <a href="{{ route('admin.walk-in.create') }}"
-               class="flex flex-col items-center gap-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:border-navy hover:shadow-md transition text-center group">
-                <div class="w-11 h-11 rounded-xl bg-navy/10 group-hover:bg-navy flex items-center justify-center transition">
-                    <svg class="w-6 h-6 text-navy group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h18l-2 13H5L3 3zm0 0l-.5-2H1M9 21a1 1 0 100-2 1 1 0 000 2zm10 0a1 1 0 100-2 1 1 0 000 2z"/>
-                    </svg>
-                </div>
-                <span class="text-xs font-semibold text-ink leading-tight">New Sale</span>
-            </a>
+            {{-- Single "New Sale" entry point with two clear choices (B) --}}
+            <div class="relative" x-data="{ newSale: false }">
+                <button type="button"
+                        @click="newSale = !newSale" @click.outside="newSale = false"
+                        aria-haspopup="menu" :aria-expanded="newSale"
+                        class="w-full h-full flex flex-col items-center gap-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:border-navy hover:shadow-md transition text-center group">
+                    <div class="w-11 h-11 rounded-xl bg-accent/15 group-hover:bg-accent flex items-center justify-center transition">
+                        <svg class="w-6 h-6 text-accent-dark group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                    </div>
+                    <span class="text-xs font-semibold text-ink leading-tight">New Sale</span>
+                </button>
 
-            <a href="{{ route('admin.online.create') }}"
-               class="flex flex-col items-center gap-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:border-navy hover:shadow-md transition text-center group">
-                <div class="w-11 h-11 rounded-xl bg-navy/10 group-hover:bg-navy flex items-center justify-center transition">
-                    <svg class="w-6 h-6 text-navy group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
-                    </svg>
+                <div x-show="newSale" x-cloak x-transition.opacity.duration.120ms
+                     class="absolute left-1/2 -translate-x-1/2 top-full -mt-1 w-[17rem] bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-40 text-left">
+                    <p class="px-4 pt-1.5 pb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Choose a checkout type</p>
+
+                    <a href="{{ route('admin.walk-in.create') }}" class="flex items-start gap-3 px-3 py-2.5 mx-1 rounded-lg hover:bg-sand transition">
+                        <span class="w-9 h-9 shrink-0 rounded-lg bg-navy/10 text-navy flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h18l-2 13H5L3 3zm0 0l-.5-2H1M9 21a1 1 0 100-2 1 1 0 000 2zm10 0a1 1 0 100-2 1 1 0 000 2z"/></svg>
+                        </span>
+                        <span class="min-w-0">
+                            <span class="block text-sm font-semibold text-ink">Walk-in Sale</span>
+                            <span class="block text-xs text-gray-500">Ring up an in-store POS checkout</span>
+                        </span>
+                    </a>
+
+                    <a href="{{ route('admin.online.create') }}" class="flex items-start gap-3 px-3 py-2.5 mx-1 rounded-lg hover:bg-sand transition">
+                        <span class="w-9 h-9 shrink-0 rounded-lg bg-accent/15 text-accent-dark flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+                        </span>
+                        <span class="min-w-0">
+                            <span class="block text-sm font-semibold text-ink">Online Order</span>
+                            <span class="block text-xs text-gray-500">Create a shipping order with payment and tracking</span>
+                        </span>
+                    </a>
                 </div>
-                <span class="text-xs font-semibold text-ink leading-tight">Online Order</span>
-            </a>
+            </div>
 
             <a href="{{ route('admin.stock.import-form') }}"
                class="flex flex-col items-center gap-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:border-navy hover:shadow-md transition text-center group">

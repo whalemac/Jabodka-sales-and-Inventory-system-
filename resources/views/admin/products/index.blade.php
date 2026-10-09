@@ -1,17 +1,19 @@
-<x-layouts.app title="Products">
+﻿<x-layouts.app title="Products">
+
+    <div x-data="{ openProduct(url) { if (window.Jabodka) window.Jabodka.modalUrl('product-modal', url); } }">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
             <h1 class="text-2xl font-bold text-ink">Products</h1>
             <p class="text-sm text-gray-500 mt-0.5">{{ $products->total() }} {{ Str::plural('product', $products->total()) }}</p>
         </div>
-        <a href="{{ route('admin.products.create') }}"
+        <button type="button" @click="openProduct('{{ route('admin.products.create') }}')"
            class="inline-flex items-center gap-2 bg-navy hover:bg-navy-dark text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition self-start sm:self-auto">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
             New Product
-        </a>
+        </button>
     </div>
 
     {{-- Search + type filter --}}
@@ -76,10 +78,10 @@
                     <a href="{{ route('admin.products.index') }}" class="mt-2 inline-block text-xs text-navy hover:underline">Clear filters</a>
                 @else
                     <p class="text-sm text-gray-400 mb-3">No products yet.</p>
-                    <a href="{{ route('admin.products.create') }}"
+                    <button type="button" @click="openProduct('{{ route('admin.products.create') }}')"
                        class="inline-flex items-center gap-2 bg-navy text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-navy-dark transition">
                         Add First Product
-                    </a>
+                    </button>
                 @endif
             </div>
         @else
@@ -101,14 +103,14 @@
                                 @endif
                                 @if($product->low_stock_count > 0)
                                 <span class="text-xs px-2 py-0.5 rounded-full font-semibold bg-red-100 text-red-700">
-                                    ? {{ $product->low_stock_count }} low
+                                    {{ $product->low_stock_count }} low
                                 </span>
                                 @endif
                             </div>
                             <p class="text-xs text-gray-400 mt-0.5">
-                                ?{{ number_format($product->base_price, 2) }}
-                                � {{ $product->variants_count }} {{ Str::plural('variant', $product->variants_count) }}
-                                @if($product->category) � {{ $product->category }} @endif
+                                ₱{{ number_format($product->base_price, 2) }}
+                                · {{ $product->variants_count }} {{ Str::plural('variant', $product->variants_count) }}
+                                @if($product->category) · {{ $product->category }} @endif
                             </p>
                         </div>
                         <div class="flex items-center gap-2 ml-3 shrink-0">
@@ -117,8 +119,8 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                                 </svg>
                             </button>
-                            <a href="{{ route('admin.products.edit', $product) }}"
-                               class="h-8 px-3 rounded-lg bg-navy text-white text-xs font-semibold flex items-center">Edit</a>
+                            <button type="button" @click="openProduct('{{ route('admin.products.edit', $product) }}')"
+                               class="h-8 px-3 rounded-lg bg-navy text-white text-xs font-semibold flex items-center">Edit</button>
                         </div>
                     </div>
                     <div x-show="open" x-cloak class="px-4 pb-4 space-y-2">
@@ -134,7 +136,7 @@
                                 @if($variant->stock_count === 0)
                                     <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">Out of stock</span>
                                 @elseif($variant->isLowStock())
-                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">? {{ $variant->stock_count }}</span>
+                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Low · {{ $variant->stock_count }}</span>
                                 @else
                                     <span class="text-xs font-semibold text-gray-600">{{ $variant->stock_count }} in stock</span>
                                 @endif
@@ -148,10 +150,10 @@
                         </div>
                         @endforeach
                         <div class="flex gap-2 pt-1">
-                            <a href="{{ route('admin.products.edit', $product) }}"
+                            <button type="button" @click="openProduct('{{ route('admin.products.edit', $product) }}')"
                                class="flex-1 h-9 flex items-center justify-center bg-navy text-white text-xs font-semibold rounded-xl hover:bg-navy-dark transition">
                                 Edit Product
-                            </a>
+                            </button>
                             <form method="POST" action="{{ route('admin.products.toggle-active', $product) }}" class="flex-1">
                                 @csrf @method('PATCH')
                                 <button type="submit"
@@ -180,7 +182,7 @@
                             <th class="px-5 py-3 font-semibold text-gray-600 text-center">Actions</th>
                         </tr>
                     </thead>
-                    <tbody x-data>
+                    <tbody>
                         @foreach($products as $product)
                         <tbody x-data="{ open: false }">
                             {{-- Product row --}}
@@ -199,7 +201,7 @@
                                         @endif
                                     </div>
                                 </td>
-                                <td class="px-5 py-3.5 text-gray-500">{{ $product->category ?? '�' }}</td>
+                                <td class="px-5 py-3.5 text-gray-500">{{ $product->category ?? '—' }}</td>
                                 <td class="px-5 py-3.5">
                                     <span class="inline-block text-xs px-2.5 py-0.5 rounded-full font-medium
                                         {{ match($product->source_type) { 'handmade' => 'bg-blue-100 text-blue-700', 'sourced' => 'bg-purple-100 text-purple-700', 'consignment' => 'bg-orange-100 text-orange-700', default => 'bg-gray-100 text-gray-600' } }}">
@@ -207,10 +209,17 @@
                                     </span>
                                 </td>
                                 <td class="px-5 py-3.5 text-gray-500 text-xs">
-                                    {{ $product->supplier?->supplier_name ?? '�' }}
+                                    @if($product->supplier)
+                                        {{ $product->supplier->supplier_name }}
+                                    @elseif($product->source_type === 'consignment')
+                                        @php $partnerNames = $product->variants->flatMap(fn ($v) => $v->consignmentItems->map(fn ($ci) => $ci->partner?->partner_name))->filter()->unique()->values(); @endphp
+                                        <span class="text-orange-700 font-medium">{{ $partnerNames->isNotEmpty() ? $partnerNames->implode(', ') : 'Consignment partner' }}</span>
+                                    @else
+                                        —
+                                    @endif
                                 </td>
                                 <td class="px-5 py-3.5 text-center font-semibold text-ink">
-                                    ?{{ number_format($product->base_price, 2) }}
+                                    ₱{{ number_format($product->base_price, 2) }}
                                 </td>
                                 <td class="px-5 py-3.5 text-center text-gray-600">
                                     {{ $product->variants_count }}
@@ -229,8 +238,8 @@
                                     @endif
                                 </td>
                                 <td class="px-5 py-3.5 text-center whitespace-nowrap" @click.stop>
-                                    <a href="{{ route('admin.products.edit', $product) }}"
-                                       class="text-xs text-navy font-semibold hover:underline mr-3">Edit</a>
+                                    <button type="button" @click="openProduct('{{ route('admin.products.edit', $product) }}')"
+                                       class="text-xs text-navy font-semibold hover:underline mr-3">Edit</button>
                                     <form method="POST" action="{{ route('admin.products.toggle-active', $product) }}" class="inline">
                                         @csrf @method('PATCH')
                                         <button type="submit" class="text-xs font-semibold {{ $product->is_active ? 'text-gray-500 hover:text-gray-800' : 'text-green-700 hover:underline' }}">
@@ -261,7 +270,7 @@
                                                     @if($variant->stock_count === 0)
                                                         <span class="inline-block text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">Out</span>
                                                     @elseif($variant->isLowStock())
-                                                        <span class="inline-block text-xs font-bold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">? {{ $variant->stock_count }}</span>
+                                                        <span class="inline-block text-xs font-bold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Low · {{ $variant->stock_count }}</span>
                                                     @else
                                                         <span class="inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{{ $variant->stock_count }}</span>
                                                     @endif
@@ -276,10 +285,10 @@
                                             @endforeach
                                         </div>
                                         <div class="ml-6 mt-2">
-                                            <a href="{{ route('admin.products.edit', $product) }}"
+                                            <button type="button" @click="openProduct('{{ route('admin.products.edit', $product) }}')"
                                                class="text-xs text-navy font-medium hover:underline">
-                                                Edit variants ?
-                                            </a>
+                                                Edit variants
+                                            </button>
                                         </div>
                                     </div>
                                 </td>
@@ -296,6 +305,15 @@
             </div>
             @endif
         @endif
+    </div>
+
+    {{-- Product create/edit popup (stays on this page) --}}
+    <x-modal name="product-modal" title="Product" subtitle="Create or update a product without leaving this page." size="lg">
+        <div class="product-modal-body">
+            <p class="text-sm text-gray-400 text-center py-6">Loading…</p>
+        </div>
+    </x-modal>
+
     </div>
 
 </x-layouts.app>

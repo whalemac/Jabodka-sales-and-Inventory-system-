@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreOnlineOrderRequest;
+use App\Http\Requests\Admin\UpdatePaymentStatusRequest;
+use App\Http\Requests\Admin\UpdateShipmentRequest;
 use App\Models\SalesTransaction;
 use App\Services\SaleService;
 use App\Support\ActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class OnlineOrderController extends Controller
@@ -48,24 +52,32 @@ class OnlineOrderController extends Controller
         return view('admin.online.show', compact('transaction'));
     }
 
-    public function store(Request $request, SaleService $sales): RedirectResponse
+    /**
+     * Order invoice fragment rendered inside a modal (A5) — never a full navigation.
+     */
+    public function invoice(SalesTransaction $transaction): View
     {
-        $data = $request->validate([
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.variant_id' => ['required', 'exists:product_variants,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'items.*.price' => ['required', 'numeric', 'min:0'],
-            'customer_name' => ['required', 'string', 'max:120'],
-            'contact_number' => ['required', 'string', 'max:30'],
-            'shipping_address' => ['required', 'string'],
-            'landmark' => ['nullable', 'string', 'max:150'],
-            'shipping_fee' => ['nullable', 'numeric', 'min:0'],
-            'courier' => ['nullable', 'string', 'max:50'],
-            'payment_method' => ['nullable', 'in:cash,gcash'],
-            'amount_paid' => ['nullable', 'numeric', 'min:0'],
-            'payment_reference' => ['nullable', 'string', 'max:80'],
-            'confirm_payment' => ['sometimes', 'boolean'],
+        abort_unless($transaction->channel === 'online', 404);
+
+        $transaction->load([
+            'items.variant.product',
+            'customer',
+            'payments',
+            'user',
         ]);
+
+        return view('admin.online._invoice', compact('transaction'));
+    }
+
+    public function store(StoreOnlineOrderRequest $request, SaleService $sales): RedirectResponse
+    {
+        $data = $request->validated();
+
+        // A confirmed GCash reference auto-advances payment to Confirmed (D).
+        $confirm = $request->boolean('confirm_payment');
+        if (($data['payment_method'] ?? null) === 'gcash' && filled($data['payment_reference'] ?? null)) {
+            $confirm = true;
+        }
 
         try {
             $sales->checkout(auth()->user(), 'online', $data['items'], [
@@ -79,7 +91,7 @@ class OnlineOrderController extends Controller
                 'payment_method' => $data['payment_method'] ?? null,
                 'amount_paid' => $data['amount_paid'] ?? null,
                 'payment_reference' => $data['payment_reference'] ?? null,
-                'confirm_payment' => $request->boolean('confirm_payment'),
+                'confirm_payment' => $confirm,
             ]);
         } catch (\RuntimeException $e) {
             return back()->withErrors(['items' => $e->getMessage()])->withInput();
@@ -88,18 +100,38 @@ class OnlineOrderController extends Controller
         return redirect()->route('admin.online.index')->with('status', 'Online order recorded.');
     }
 
-    public function updateShipment(Request $request, SalesTransaction $transaction): RedirectResponse|JsonResponse
+    public function updateShipment(UpdateShipmentRequest $request, SalesTransaction $transaction): RedirectResponse|JsonResponse
     {
         abort_unless($transaction->channel === 'online', 404);
 
-        $data = $request->validate([
-            'shipment_status' => ['required', 'in:pending,preparing,shipped,in_transit,delivered,returned'],
-            'tracking_number' => ['nullable', 'string', 'max:80'],
-            'courier' => ['nullable', 'string', 'max:50'],
-        ]);
+        $data = $request->validated();
+        $current = $transaction->shipment_status;
 
-        $old = $transaction->shipment_status;
-        $payload = ['shipment_status' => $data['shipment_status']];
+        // Default to current status when only tracking/courier is being saved.
+        $target = $data['shipment_status'] ?? $current;
+        $newTracking = trim((string) ($data['tracking_number'] ?? ''));
+        $existingTracking = trim((string) ($transaction->tracking_number ?? ''));
+
+        // Entering a tracking number auto-advances Pending/Preparing to Shipped.
+        // Covers both "save with next step" and "save tracking only" flows —
+        // once a tracking number exists the order is, by definition, shipped.
+        if (($newTracking !== '' || ($target === $current && $existingTracking !== ''))
+            && in_array($current, ['pending', 'preparing'], true)
+            && in_array($target, ['pending', 'preparing', $current], true)) {
+            $target = 'shipped';
+            $data['shipment_status'] = 'shipped';
+        }
+
+        $this->assertAllowedTransition(
+            'shipment_status',
+            $current,
+            $target,
+            SalesTransaction::SHIPMENT_TRANSITIONS,
+            SalesTransaction::SHIPMENT_STATUSES,
+        );
+
+        $old = $current;
+        $payload = ['shipment_status' => $target];
         if (array_key_exists('tracking_number', $data) && $data['tracking_number'] !== null) {
             $payload['tracking_number'] = $data['tracking_number'];
         }
@@ -111,7 +143,7 @@ class OnlineOrderController extends Controller
 
         ActivityLogger::log('order.shipment.update', $transaction, null, [
             'from' => $old,
-            'to' => $data['shipment_status'],
+            'to' => $target,
         ]);
 
         if ($request->wantsJson()) {
@@ -125,15 +157,29 @@ class OnlineOrderController extends Controller
         return back()->with('status', 'Shipment updated.');
     }
 
-    public function updatePaymentStatus(Request $request, SalesTransaction $transaction, SaleService $sales): RedirectResponse|JsonResponse
+    public function updatePaymentStatus(UpdatePaymentStatusRequest $request, SalesTransaction $transaction, SaleService $sales): RedirectResponse|JsonResponse
     {
         abort_unless($transaction->channel === 'online', 404);
 
-        $data = $request->validate([
-            'payment_status' => ['required', 'in:pending,confirmed,refunded'],
-        ]);
+        $data = $request->validated();
+        $current = $transaction->derivedPaymentStatus();
 
-        $status = $sales->setPaymentStatus($transaction, auth()->user(), $data['payment_status']);
+        // Entering a GCash/payment reference number auto-confirms a pending payment —
+        // a reference is proof of payment, so the order moves to Confirmed.
+        $reference = trim((string) ($data['reference_number'] ?? ''));
+        if ($reference !== '' && $current === 'pending') {
+            $data['payment_status'] = 'confirmed';
+        }
+
+        $this->assertAllowedTransition(
+            'payment_status',
+            $current,
+            $data['payment_status'],
+            SalesTransaction::PAYMENT_TRANSITIONS,
+            SalesTransaction::PAYMENT_STATUSES,
+        );
+
+        $status = $sales->setPaymentStatus($transaction, auth()->user(), $data['payment_status'], $reference !== '' ? $reference : null);
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -144,5 +190,28 @@ class OnlineOrderController extends Controller
         }
 
         return back()->with('status', 'Payment status updated.');
+    }
+
+    /**
+     * Server-side one-way state machine guard (A4). Rejected moves return 422,
+     * which the JSON endpoints surface inline and web forms surface as errors.
+     */
+    protected function assertAllowedTransition(
+        string $attribute,
+        ?string $current,
+        string $target,
+        array $transitions,
+        array $labels,
+    ): void {
+        $allowed = isset($current) ? ($transitions[$current] ?? []) : [];
+
+        if ($current !== $target && ! in_array($target, $allowed, true)) {
+            $from = $current !== null ? ($labels[$current] ?? $current) : 'none';
+            $to = $labels[$target] ?? $target;
+
+            throw ValidationException::withMessages([
+                $attribute => "{$to} is not a valid next status from {$from}.",
+            ]);
+        }
     }
 }

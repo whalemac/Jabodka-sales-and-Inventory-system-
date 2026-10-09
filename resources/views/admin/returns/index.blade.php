@@ -18,6 +18,17 @@
         </a>
     </div>
 
+    {{-- KPI cards — returns are always reported as positive figures
+         (units returned + pesos refunded), never as negative deductions. --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+        <x-kpi-card label="Units Returned" value="{{ $returnedUnits }}"
+                    sub="units returned across {{ $totalRefunds + $totalReplacements }} {{ Str::plural('return', $totalRefunds + $totalReplacements) }}"
+                    color="navy" />
+        <x-kpi-card label="Refunds" value="₱{{ number_format($refundTotal, 2) }}"
+                    sub="{{ $totalRefunds }} {{ Str::plural('refund', $totalRefunds) }} · {{ $totalReplacements }} {{ Str::plural('replacement', $totalReplacements) }}"
+                    color="{{ $refundTotal > 0 ? 'red' : 'white' }}" />
+    </div>
+
     @error('duplicate')
     <div class="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
         {{ $message }}

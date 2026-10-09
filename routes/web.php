@@ -61,6 +61,7 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('online', [OnlineOrderController::class, 'store'])->name('online.store');
         Route::patch('online/{transaction}/shipment', [OnlineOrderController::class, 'updateShipment'])->name('online.shipment');
         Route::patch('online/{transaction}/payment-status', [OnlineOrderController::class, 'updatePaymentStatus'])->name('online.payment-status');
+        Route::get('online/{transaction}/invoice', [OnlineOrderController::class, 'invoice'])->name('online.invoice');
         Route::get('online/{transaction}', [OnlineOrderController::class, 'show'])->name('online.show');
 
         // Payments (standalone confirm for online orders)
@@ -68,6 +69,7 @@ Route::middleware(['auth', 'role:admin'])
 
         // Receipts
         Route::get('receipts/{receipt}', [ReceiptController::class, 'show'])->name('receipts.show');
+        Route::get('receipts/{receipt}/partial', [ReceiptController::class, 'partial'])->name('receipts.partial');
         Route::post('receipts/{receipt}/reprint', [ReceiptController::class, 'reprint'])->name('receipts.reprint');
         Route::post('receipts/issue/{transaction}', [ReceiptController::class, 'issue'])->name('receipts.issue');
 

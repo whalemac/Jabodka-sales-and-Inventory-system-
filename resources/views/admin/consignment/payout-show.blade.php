@@ -134,12 +134,17 @@
 
             {{-- Mark paid (if pending) --}}
             @if($payment->payment_status === 'pending')
-            <div class="bg-white rounded-2xl shadow-sm border border-yellow-200 p-5"
-                 x-data="{ open: false }">
+            <div class="bg-white rounded-2xl shadow-sm border border-yellow-200 p-5">
                 <h2 class="font-semibold text-ink text-sm mb-1">Record Payment</h2>
                 <p class="text-xs text-gray-500 mb-4">
                     Mark this payout as paid once you've transferred ₱{{ number_format($payment->total_amount, 2) }} to {{ $payment->partner->partner_name }}.
                 </p>
+                <button type="button" onclick="window.Jabodka && window.Jabodka.modalOpen('mark-paid-show')"
+                        class="w-full h-11 bg-green-600 hover:bg-green-700 text-white font-semibold text-sm rounded-xl transition">
+                    ✓ Mark as Paid
+                </button>
+            </div>
+            <x-modal name="mark-paid-show" title="Mark Payout as Paid" subtitle="Pay ₱{{ number_format($payment->total_amount, 2) }} to {{ $payment->partner->partner_name }}." size="md">
                 <form method="POST" action="{{ route('admin.consignment.payouts.mark-paid', $payment) }}"
                       class="space-y-3">
                     @csrf @method('PATCH')
@@ -149,6 +154,8 @@
                         </label>
                         <input type="text" name="reference_number"
                                placeholder="e.g. 09123456789"
+                               data-label="GCash reference"
+                               data-validate="max:80" data-field="GCash reference"
                                class="w-full h-11 px-4 rounded-xl border-2 border-gray-200 bg-white text-sm focus:outline-none focus:border-navy">
                     </div>
                     <button type="submit"
@@ -156,7 +163,7 @@
                         ✓ Mark as Paid
                     </button>
                 </form>
-            </div>
+            </x-modal>
             @else
             <div class="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
                 <svg class="w-8 h-8 text-green-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

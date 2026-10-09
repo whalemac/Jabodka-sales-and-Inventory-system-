@@ -38,7 +38,23 @@ class ReturnController extends Controller
         $totalRefunds = ProductReturn::where('return_type', 'refund')->count();
         $totalReplacements = ProductReturn::where('return_type', 'replacement')->count();
 
-        return view('admin.returns.index', compact('returns', 'typeFilter', 'totalRefunds', 'totalReplacements'));
+        // KPI convention (shared with the Sales / Consignment KPI cards):
+        // a returned item always counts as a POSITIVE figure — units returned are
+        // summed as-is and refunds are shown in pesos, never as a negative
+        // deduction against revenue.
+        $returnedUnits = (int) SalesItem::query()
+            ->whereIn('id', ProductReturn::query()->select('sales_item_id'))
+            ->sum('quantity');
+        $refundTotal = (float) ProductReturn::query()->where('return_type', 'refund')->sum('refund_amount');
+
+        return view('admin.returns.index', compact(
+            'returns',
+            'typeFilter',
+            'totalRefunds',
+            'totalReplacements',
+            'returnedUnits',
+            'refundTotal'
+        ));
     }
 
     // ─── Search transactions to find the item to return ───────────────────────

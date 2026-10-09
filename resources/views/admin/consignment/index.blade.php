@@ -1,5 +1,7 @@
 <x-layouts.app title="Consignment">
 
+    <div x-data="{ openConsign(url, modal) { if (window.Jabodka) window.Jabodka.modalUrl(modal, url); } }">
+
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
             <h1 class="text-2xl font-bold text-ink">Consignment</h1>
@@ -13,14 +15,14 @@
                 </svg>
                 Payouts
             </a>
-            <a href="{{ route('admin.consignment.partners.create') }}"
+            <button type="button" @click="openConsign('{{ route('admin.consignment.partners.create') }}', 'partner-modal')"
                class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-navy text-ink text-sm font-medium px-4 py-2.5 rounded-xl transition">
                 + Partner
-            </a>
-            <a href="{{ route('admin.consignment.items.create') }}"
+            </button>
+            <button type="button" @click="openConsign('{{ route('admin.consignment.items.create') }}', 'dropoff-modal')"
                class="inline-flex items-center gap-2 bg-navy hover:bg-navy-dark text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition">
                 + Record drop-off
-            </a>
+            </button>
         </div>
     </div>
 
@@ -40,8 +42,8 @@
                         <p class="text-xs text-gray-400 mt-0.5">{{ Str::limit($partner->contact_details, 50) }}</p>
                     @endif
                 </div>
-                <a href="{{ route('admin.consignment.partners.edit', $partner) }}"
-                   class="text-xs text-navy font-medium hover:underline shrink-0">Edit</a>
+                <button type="button" @click="openConsign('{{ route('admin.consignment.partners.edit', $partner) }}', 'partner-modal')"
+                   class="text-xs text-navy font-medium hover:underline shrink-0">Edit</button>
             </div>
 
             {{-- Unsettled badge --}}
@@ -72,10 +74,10 @@
         @empty
         <div class="col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-10 text-center">
             <p class="text-sm text-gray-400 mb-3">No consignment partners yet.</p>
-            <a href="{{ route('admin.consignment.partners.create') }}"
+            <button type="button" @click="openConsign('{{ route('admin.consignment.partners.create') }}', 'partner-modal')"
                class="inline-flex items-center gap-2 bg-navy text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-navy-dark transition">
                 Add First Partner
-            </a>
+            </button>
         </div>
         @endforelse
     </div>
@@ -122,7 +124,7 @@
                                     <td class="px-3 py-2 text-center font-semibold">{{ $line->remainingQuantity() }}</td>
                                     <td class="px-3 py-2 text-center">
                                         @if($line->remainingQuantity() > 0)
-                                        <a href="{{ route('admin.consignment.items.pullout-form', $line) }}" class="text-orange-700 font-semibold hover:underline">Pull Out</a>
+                                        <button type="button" @click="openConsign('{{ route('admin.consignment.items.pullout-form', $line) }}', 'pullout-modal')" class="text-orange-700 font-semibold hover:underline">Pull Out</button>
                                         @endif
                                     </td>
                                 </tr>
@@ -143,15 +145,15 @@
     {{-- Consignment Items table --}}
     <div class="flex items-center justify-between mb-3">
         <h2 class="text-base font-semibold text-ink">Consignment Items</h2>
-        <a href="{{ route('admin.consignment.items.create') }}"
-           class="text-xs text-navy font-medium hover:underline">+ Record drop-off</a>
+        <button type="button" @click="openConsign('{{ route('admin.consignment.items.create') }}', 'dropoff-modal')"
+           class="text-xs text-navy font-medium hover:underline">+ Record drop-off</button>
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         @if($items->isEmpty())
             <div class="px-6 py-10 text-center text-sm text-gray-400">
                 No consignment items recorded yet.
-                <a href="{{ route('admin.consignment.items.create') }}" class="text-navy font-medium ml-1">Add one →</a>
+                <button type="button" @click="openConsign('{{ route('admin.consignment.items.create') }}', 'dropoff-modal')" class="text-navy font-medium ml-1">Add one →</button>
             </div>
         @else
             {{-- Mobile cards --}}
@@ -180,11 +182,11 @@
                         </div>
                     </div>
                     <div class="mt-2">
-                        <a href="{{ route('admin.consignment.items.edit', $item) }}"
-                           class="text-xs text-navy font-medium hover:underline">Edit</a>
+                        <button type="button" @click="openConsign('{{ route('admin.consignment.items.edit', $item) }}', 'item-modal')"
+                           class="text-xs text-navy font-medium hover:underline">Edit</button>
                         @if($item->remainingQuantity() > 0)
-                        <a href="{{ route('admin.consignment.items.pullout-form', $item) }}"
-                           class="text-xs text-orange-700 font-semibold hover:underline ml-3">Pull Out</a>
+                        <button type="button" @click="openConsign('{{ route('admin.consignment.items.pullout-form', $item) }}', 'pullout-modal')"
+                           class="text-xs text-orange-700 font-semibold hover:underline ml-3">Pull Out</button>
                         @endif
                     </div>
                 </div>
@@ -230,11 +232,11 @@
                             </td>
                             <td class="px-5 py-3.5 text-gray-500 text-xs">{{ $item->received_at->format('M j, Y') }}</td>
                             <td class="px-5 py-3.5 text-center whitespace-nowrap">
-                                <a href="{{ route('admin.consignment.items.edit', $item) }}"
-                                   class="text-xs text-navy font-medium hover:underline">Edit</a>
+                                <button type="button" @click="openConsign('{{ route('admin.consignment.items.edit', $item) }}', 'item-modal')"
+                                   class="text-xs text-navy font-medium hover:underline">Edit</button>
                                 @if($item->remainingQuantity() > 0)
-                                <a href="{{ route('admin.consignment.items.pullout-form', $item) }}"
-                                   class="text-xs text-orange-700 font-semibold hover:underline ml-2">Pull Out</a>
+                                <button type="button" @click="openConsign('{{ route('admin.consignment.items.pullout-form', $item) }}', 'pullout-modal')"
+                                   class="text-xs text-orange-700 font-semibold hover:underline ml-2">Pull Out</button>
                                 @endif
                             </td>
                         </tr>
@@ -247,6 +249,36 @@
             <div class="px-5 py-4 border-t border-gray-100">{{ $items->links() }}</div>
             @endif
         @endif
+    </div>
+
+    {{-- Partner popup (stays on this page) --}}
+    <x-modal name="partner-modal" title="Consignment Partner" subtitle="Add or update a partner without leaving this page." size="md">
+        <div class="partner-modal-body">
+            <p class="text-sm text-gray-400 text-center py-6">Loading…</p>
+        </div>
+    </x-modal>
+
+    {{-- Record drop-off popup (stays on this page) --}}
+    <x-modal name="dropoff-modal" title="Record Drop-off" subtitle="One visit from a partner, many items." size="xl">
+        <div class="dropoff-modal-body">
+            <p class="text-sm text-gray-400 text-center py-6">Loading…</p>
+        </div>
+    </x-modal>
+
+    {{-- Edit item popup (stays on this page) --}}
+    <x-modal name="item-modal" title="Consignment Item" subtitle="Update pricing or quantities." size="lg">
+        <div class="item-modal-body">
+            <p class="text-sm text-gray-400 text-center py-6">Loading…</p>
+        </div>
+    </x-modal>
+
+    {{-- Pull-out popup (stays on this page) --}}
+    <x-modal name="pullout-modal" title="Pull Out" subtitle="Return unsold units to the partner." size="md">
+        <div class="pullout-modal-body">
+            <p class="text-sm text-gray-400 text-center py-6">Loading…</p>
+        </div>
+    </x-modal>
+
     </div>
 
 </x-layouts.app>

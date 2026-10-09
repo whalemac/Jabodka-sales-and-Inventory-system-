@@ -64,9 +64,16 @@ class ConsignmentController extends Controller
 
     // ─── Partners ─────────────────────────────────────────────────────────────
 
-    public function createPartner(): View
+    public function createPartner(Request $request): View
     {
-        return view('admin.consignment.partner-form', ['partner' => new ConsignmentPartner]);
+        $data = ['partner' => new ConsignmentPartner];
+
+        // Modal popup flow: return just the form fragment for Jabodka.modalUrl().
+        if ($request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return view('admin.consignment._partner-form', $data);
+        }
+
+        return view('admin.consignment.partner-form', $data);
     }
 
     public function storePartner(Request $request): RedirectResponse
@@ -78,8 +85,13 @@ class ConsignmentController extends Controller
         return redirect()->route('admin.consignment.index')->with('status', 'Partner "'.$partner->partner_name.'" added.');
     }
 
-    public function editPartner(ConsignmentPartner $partner): View
+    public function editPartner(Request $request, ConsignmentPartner $partner): View
     {
+        // Modal popup flow: return just the form fragment for Jabodka.modalUrl().
+        if ($request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return view('admin.consignment._partner-form', compact('partner'));
+        }
+
         return view('admin.consignment.partner-form', compact('partner'));
     }
 
@@ -113,11 +125,18 @@ class ConsignmentController extends Controller
 
         $prePartner = $request->get('partner');
 
-        return view('admin.consignment.receipt-form', [
+        $data = [
             'partners' => $partners,
             'variants' => $variants,
             'prePartner' => $prePartner,
-        ]);
+        ];
+
+        // Modal popup flow: return just the form fragment for Jabodka.modalUrl().
+        if ($request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return view('admin.consignment._receipt-form', $data);
+        }
+
+        return view('admin.consignment.receipt-form', $data);
     }
 
     public function storeItem(Request $request): RedirectResponse
@@ -181,10 +200,15 @@ class ConsignmentController extends Controller
             ->with('status', 'Consignment drop-off recorded ('.$receipt->items()->count().' lines).');
     }
 
-    public function pulloutForm(ConsignmentItem $item): View
+    public function pulloutForm(Request $request, ConsignmentItem $item): View
     {
         $item->load(['partner', 'variant.product', 'pullouts']);
         ConsignmentItem::allocateSoldQuantities(collect([$item]));
+
+        // Modal popup flow: return just the form fragment for Jabodka.modalUrl().
+        if ($request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return view('admin.consignment._pullout', compact('item'));
+        }
 
         return view('admin.consignment.pullout', compact('item'));
     }
@@ -235,7 +259,7 @@ class ConsignmentController extends Controller
             ->with('status', 'Pulled out '.$data['quantity_pulled'].' of '.$item->variant->displayName().'.');
     }
 
-    public function editItem(ConsignmentItem $item): View
+    public function editItem(Request $request, ConsignmentItem $item): View
     {
         $item->load(['partner', 'variant.product']);
         $partners = ConsignmentPartner::query()->orderBy('partner_name')->get();
@@ -244,6 +268,11 @@ class ConsignmentController extends Controller
             ->whereHas('product', fn ($q) => $q->where('source_type', 'consignment'))
             ->orderBy('product_id')
             ->get();
+
+        // Modal popup flow: return just the form fragment for Jabodka.modalUrl().
+        if ($request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return view('admin.consignment._item-form', compact('item', 'partners', 'variants'));
+        }
 
         return view('admin.consignment.item-form', compact('item', 'partners', 'variants'));
     }
@@ -297,6 +326,12 @@ class ConsignmentController extends Controller
         });
         $unsettledCounts = $grouped->map(fn ($items) => $items->count());
 
+        // Amount owed per partner (partner_id => pesos). Same agreed_base_price
+        // maths as generatePayout() so the KPI cards always match a payout total.
+        $unsettledAmounts = $grouped->map(fn ($items) => $items->sum(
+            fn (SalesItem $si) => (float) ($si->variant->consignmentItems->first()?->agreed_base_price ?? 0) * $si->quantity
+        ));
+
         $page = max(1, (int) $request->input('upage', 1));
         $perPage = 5;
         $unsettled = new LengthAwarePaginator(
@@ -308,7 +343,7 @@ class ConsignmentController extends Controller
         );
         $unsettled->setPageName('upage');
 
-        return view('admin.consignment.payouts', compact('partners', 'payments', 'unsettled', 'unsettledCounts'));
+        return view('admin.consignment.payouts', compact('partners', 'payments', 'unsettled', 'unsettledCounts', 'unsettledAmounts'));
     }
 
     public function generatePayout(Request $request): RedirectResponse
@@ -396,7 +431,7 @@ class ConsignmentController extends Controller
         ]);
 
         $lines = ConsignmentPaymentItem::query()
-            ->where('payment_id', $payment->id)
+            ->where('consignment_payment_id', $payment->id)
             ->with(['consignmentItem.variant.product', 'salesItem.transaction'])
             ->orderBy('id')
             ->paginate(15);

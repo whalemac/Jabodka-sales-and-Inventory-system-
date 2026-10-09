@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ConsignmentPayment;
 use App\Models\ConsignmentPaymentItem;
+use App\Models\ProductReturn;
 use App\Models\SalesItem;
 use App\Models\SalesTransaction;
 use App\Models\StockAdjustment;
@@ -43,6 +44,8 @@ class ReportController extends Controller
 
     public function sales(Request $request): View
     {
+        $this->validateRange($request);
+
         $range = $request->get('range', 'month');
         $from = $this->rangeStart($range, $request->get('from'));
         $to = $this->rangeEnd($range, $request->get('to'));
@@ -56,6 +59,17 @@ class ReportController extends Controller
         $walkInCount = $transactions->where('channel', 'walk_in')->count();
         $onlineCount = $transactions->where('channel', 'online')->count();
         $avgOrderValue = $totalTransactions > 0 ? $totalRevenue / $totalTransactions : 0;
+
+        // KPI convention: "Returns" is always a POSITIVE figure — units returned
+        // and pesos refunded are shown alongside revenue (like the dashboard and
+        // consignment KPI cards), never as a negative deduction from revenue.
+        $returnedUnits = (int) SalesItem::query()
+            ->whereIn('id', ProductReturn::query()->select('sales_item_id'))
+            ->whereHas('transaction', fn ($q) => $q->whereBetween('transaction_date', [$from, $to]))
+            ->sum('quantity');
+        $returnedRefunds = (float) ProductReturn::query()
+            ->whereHas('salesItem.transaction', fn ($q) => $q->whereBetween('transaction_date', [$from, $to]))
+            ->sum('refund_amount');
 
         // Daily revenue series for chart (keyed by date string)
         $dailySeries = $transactions
@@ -81,6 +95,7 @@ class ReportController extends Controller
         return view('admin.reports.sales', compact(
             'transactions', 'totalRevenue', 'totalTransactions',
             'walkInRevenue', 'onlineRevenue', 'walkInCount', 'onlineCount', 'avgOrderValue',
+            'returnedUnits', 'returnedRefunds',
             'chartLabels', 'chartData',
             'from', 'to', 'range',
             'rows'
@@ -89,6 +104,8 @@ class ReportController extends Controller
 
     public function exportSales(Request $request): StreamedResponse
     {
+        $this->validateRange($request);
+
         $range = $request->get('range', 'month');
         $from = $this->rangeStart($range, $request->get('from'));
         $to = $this->rangeEnd($range, $request->get('to'));
@@ -132,6 +149,8 @@ class ReportController extends Controller
 
     public function bestSellers(Request $request): View
     {
+        $this->validateRange($request);
+
         $range = $request->get('range', 'month');
         $from = $this->rangeStart($range, $request->get('from'));
         $to = $this->rangeEnd($range, $request->get('to'));
@@ -157,6 +176,8 @@ class ReportController extends Controller
 
     public function exportBestSellers(Request $request): StreamedResponse
     {
+        $this->validateRange($request);
+
         $range = $request->get('range', 'month');
         $from = $this->rangeStart($range, $request->get('from'));
         $to = $this->rangeEnd($range, $request->get('to'));
@@ -209,6 +230,8 @@ class ReportController extends Controller
 
     public function stockMovement(Request $request): View
     {
+        $this->validateRange($request);
+
         $range = $request->get('range', 'week');
         $from = $this->rangeStart($range, $request->get('from'));
         $to = $this->rangeEnd($range, $request->get('to'));
@@ -226,6 +249,8 @@ class ReportController extends Controller
 
     public function exportStockMovement(Request $request): StreamedResponse
     {
+        $this->validateRange($request);
+
         $range = $request->get('range', 'week');
         $from = $this->rangeStart($range, $request->get('from'));
         $to = $this->rangeEnd($range, $request->get('to'));
@@ -280,6 +305,7 @@ class ReportController extends Controller
         $movements = collect();
 
         foreach ($adjustments as $adj) {
+            // Sign convention matches stock adjustments: damage/consignment_return are stored negative, restock/correction stay signed.
             $movements->push([
                 'date' => $adj->created_at,
                 'product' => $adj->variant->displayName(),
@@ -317,10 +343,10 @@ class ReportController extends Controller
 
         $movements = $movements->sortByDesc('date')->values();
 
-        // Summary stats
+        // Summary stats — damage rows are stored negative by stock adjustments, so the KPI sums the signed values (no abs() inversion).
         $totalRestocked = $adjustments->where('adjustment_type', 'restock')->sum('quantity_changed')
             + $receiptItems->sum('quantity_received');
-        $totalDamage = abs($adjustments->whereIn('adjustment_type', ['damage'])->sum('quantity_changed'));
+        $totalDamage = $adjustments->whereIn('adjustment_type', ['damage'])->sum('quantity_changed');
         $totalSoldUnits = $salesDeductions->sum('quantity');
 
         return [
@@ -438,6 +464,18 @@ class ReportController extends Controller
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
+    /**
+     * Custom range filters: from/to must be real dates with from <= to.
+     * Validation failures redirect back with the old input flashed (withInput()).
+     */
+    private function validateRange(Request $request): void
+    {
+        $request->validate([
+            'from' => ['nullable', 'date', 'before_or_equal:to'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+    }
+
     private function paginateRows(Request $request, $collection, string $pageName = 'page', int $perPage = 25): LengthAwarePaginator
     {
         $page = max(1, (int) $request->get($pageName, 1));
@@ -471,7 +509,8 @@ class ReportController extends Controller
             'today' => now()->startOfDay()->toDateTimeString(),
             'week' => now()->startOfWeek()->toDateTimeString(),
             'month' => now()->startOfMonth()->toDateTimeString(),
-            'custom' => $custom ? $custom.' 00:00:00' : now()->startOfMonth()->toDateTimeString(),
+            // from/to are validated as dates first, so parse them instead of gluing a time string on.
+            'custom' => $custom ? Carbon::parse($custom)->startOfDay()->toDateTimeString() : now()->startOfMonth()->toDateTimeString(),
             default => now()->startOfDay()->toDateTimeString(),
         };
     }
@@ -479,7 +518,7 @@ class ReportController extends Controller
     private function rangeEnd(string $range, ?string $custom): string
     {
         return match ($range) {
-            'custom' => $custom ? $custom.' 23:59:59' : now()->endOfDay()->toDateTimeString(),
+            'custom' => $custom ? Carbon::parse($custom)->endOfDay()->toDateTimeString() : now()->endOfDay()->toDateTimeString(),
             default => now()->endOfDay()->toDateTimeString(),
         };
     }

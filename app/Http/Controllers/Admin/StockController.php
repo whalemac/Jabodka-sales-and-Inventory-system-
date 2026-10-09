@@ -26,7 +26,7 @@ class StockController extends Controller
         $search = trim((string) $request->get('q', ''));
 
         $query = ProductVariant::query()
-            ->with('product.supplier')
+            ->with(['product.supplier', 'consignmentItems.partner'])
             ->join('products', 'product_variants.product_id', '=', 'products.id')
             ->select('product_variants.*')
             ->when($filter === 'low', fn ($q) => $q->lowStock())
@@ -66,9 +66,14 @@ class StockController extends Controller
         ));
     }
 
-    public function adjustForm(ProductVariant $variant): View
+    public function adjustForm(Request $request, ProductVariant $variant): View
     {
         $variant->load('product');
+
+        // Modal popup flow: return just the form fragment for Jabodka.modalUrl().
+        if ($request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return view('admin.stock._adjust', compact('variant'));
+        }
 
         return view('admin.stock.adjust', compact('variant'));
     }
@@ -81,11 +86,17 @@ class StockController extends Controller
             'reason' => ['required', 'string', 'max:500'],
         ]);
 
+        $qty = (int) $data['quantity_changed'];
+        // For damage/consignment_return, coerce to negative value (deduction)
+        if (in_array($data['adjustment_type'], ['damage', 'consignment_return'])) {
+            $qty = -abs($qty);
+        }
+
         try {
             $this->stock->adjust(
                 variant: $variant,
                 user: auth()->user(),
-                quantityChanged: (int) $data['quantity_changed'],
+                quantityChanged: $qty,
                 type: $data['adjustment_type'],
                 reason: $data['reason'],
             );
@@ -110,6 +121,11 @@ class StockController extends Controller
 
         $preselect = $request->get('variant');
         $nextInvoiceNumber = $this->nextInvoiceNumber();
+
+        // Modal popup flow: return just the form fragment for Jabodka.modalUrl().
+        if ($request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return view('admin.stock._import', compact('suppliers', 'products', 'preselect', 'nextInvoiceNumber'));
+        }
 
         return view('admin.stock.import', compact('suppliers', 'products', 'preselect', 'nextInvoiceNumber'));
     }

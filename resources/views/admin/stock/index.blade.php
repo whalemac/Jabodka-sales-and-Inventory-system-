@@ -1,5 +1,7 @@
 <x-layouts.app title="Stock Management">
 
+    <div x-data="{ openStock(url, modal) { if (window.Jabodka) window.Jabodka.modalUrl(modal || 'stock-modal', url); } }">
+
     {{-- Page header --}}
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
@@ -17,13 +19,13 @@
                 @endif
             </p>
         </div>
-        <a href="{{ route('admin.stock.import-form') }}"
+        <button type="button" @click="openStock('{{ route('admin.stock.import-form') }}', 'stock-import-modal')"
            class="inline-flex items-center gap-2 bg-navy hover:bg-navy-dark text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition self-start sm:self-auto">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
             </svg>
             Add Stock (Import)
-        </a>
+        </button>
     </div>
 
     {{-- Source type filter --}}
@@ -96,7 +98,7 @@
                 <h2 class="font-semibold text-ink text-sm">Supplier invoices</h2>
                 <p class="text-xs text-gray-400 mt-0.5">Click an invoice to see every product received on that delivery</p>
             </div>
-            <a href="{{ route('admin.stock.import-form') }}" class="text-xs text-navy font-semibold hover:underline">Record invoice →</a>
+            <button type="button" @click="openStock('{{ route('admin.stock.import-form') }}', 'stock-import-modal')" class="text-xs text-navy font-semibold hover:underline">Record invoice →</button>
         </div>
         @if($receipts->isEmpty())
             <div class="px-5 py-8 text-center text-sm text-gray-400">No supplier invoices recorded yet.</div>
@@ -205,6 +207,9 @@
                             <p class="text-xs text-gray-500 mt-0.5">{{ $variant->label() }}</p>
                             @if($variant->product->supplier)
                                 <p class="text-xs text-gray-400">{{ $variant->product->supplier->supplier_name }}</p>
+                            @elseif($variant->product->source_type === 'consignment')
+                                @php $partnerNames = $variant->consignmentItems->map(fn ($ci) => $ci->partner?->partner_name)->filter()->unique()->values(); @endphp
+                                <p class="text-xs text-orange-700 font-medium">{{ $partnerNames->isNotEmpty() ? $partnerNames->implode(', ') : 'Consignment' }}</p>
                             @endif
                         </div>
                         <div class="text-right shrink-0 space-y-1">
@@ -219,14 +224,14 @@
                         </div>
                     </div>
                     <div class="flex gap-2 mt-2.5">
-                        <a href="{{ route('admin.stock.adjust-form', $variant) }}"
+                        <button type="button" @click="openStock('{{ route('admin.stock.adjust-form', $variant) }}', 'stock-modal')"
                            class="flex-1 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-medium text-ink transition">
                             Adjust
-                        </a>
-                        <a href="{{ route('admin.stock.import-form', ['variant' => $variant->id]) }}"
+                        </button>
+                        <button type="button" @click="openStock('{{ route('admin.stock.import-form', ['variant' => $variant->id]) }}', 'stock-import-modal')"
                            class="flex-1 h-8 flex items-center justify-center rounded-lg bg-navy/10 hover:bg-navy text-xs font-semibold text-navy hover:text-white transition">
                             + Restock
-                        </a>
+                        </button>
                     </div>
                 </div>
                 @endforeach
@@ -273,7 +278,14 @@
                                 </span>
                             </td>
                             <td class="px-5 py-3.5 text-gray-500 text-xs">
-                                {{ $variant->product->supplier?->supplier_name ?? '—' }}
+                                @if($variant->product->supplier)
+                                    {{ $variant->product->supplier->supplier_name }}
+                                @elseif($variant->product->source_type === 'consignment')
+                                    @php $partnerNames = $variant->consignmentItems->map(fn ($ci) => $ci->partner?->partner_name)->filter()->unique()->values(); @endphp
+                                    <span class="text-orange-700 font-medium">{{ $partnerNames->isNotEmpty() ? $partnerNames->implode(', ') : 'Consignment partner' }}</span>
+                                @else
+                                    —
+                                @endif
                             </td>
                             <td class="px-5 py-3.5 text-center">
                                 <span class="text-base font-bold
@@ -304,18 +316,18 @@
                             </td>
                             <td class="px-5 py-3.5 text-center whitespace-nowrap">
                                 <div class="flex items-center justify-center gap-4">
-                                    <a href="{{ route('admin.stock.import-form', ['variant' => $variant->id]) }}"
+                                    <button type="button" @click="openStock('{{ route('admin.stock.import-form', ['variant' => $variant->id]) }}', 'stock-import-modal')"
                                        class="inline-flex items-center gap-1 text-xs text-navy font-semibold hover:underline
                                               {{ $isOut || $isLow ? 'text-navy' : 'text-gray-500 hover:text-navy' }}">
                                         + Restock
-                                    </a>
-                                    <a href="{{ route('admin.stock.adjust-form', $variant) }}"
+                                    </button>
+                                    <button type="button" @click="openStock('{{ route('admin.stock.adjust-form', $variant) }}', 'stock-modal')"
                                        class="inline-flex items-center gap-1 text-xs text-gray-500 font-medium hover:text-navy hover:underline">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg>
                                         Adjust
-                                    </a>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -331,6 +343,22 @@
             </div>
             @endif
         @endif
+    </div>
+
+    {{-- Adjust popup (stays on this page) --}}
+    <x-modal name="stock-modal" title="Adjust Stock" subtitle="Correction, damage, or consignment return." size="md">
+        <div class="stock-modal-body">
+            <p class="text-sm text-gray-400 text-center py-6">Loading…</p>
+        </div>
+    </x-modal>
+
+    {{-- Restock / import popup (stays on this page) --}}
+    <x-modal name="stock-import-modal" title="Add Stock — Import Invoice" subtitle="Record a supplier delivery without leaving this page." size="xl">
+        <div class="stock-import-modal-body">
+            <p class="text-sm text-gray-400 text-center py-6">Loading…</p>
+        </div>
+    </x-modal>
+
     </div>
 
 </x-layouts.app>
